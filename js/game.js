@@ -28,9 +28,11 @@
   // 0:草地 1:道(石畳) 2:壁 3:木 4:水 5:一般入口
   // 6:ゲディミナス塔 7:夜明けの門 8:聖アンナ教会
   // 9:エンカウント草むら 10:大聖堂 11:宿屋入口 12:集会所入口 13:橋 14:花畑
+  // 15:料理屋(マンタス) 16:雑貨屋 17:旧市庁舎(ホール入口)
   const T = {
     GRASS:0, ROAD:1, WALL:2, TREE:3, WATER:4, DOOR:5,
-    GEDIMINAS:6, GATES:7, ANNE:8, ENC:9, CATHEDRAL:10, INN:11, AKHALL:12, BRIDGE:13, FLOWER:14
+    GEDIMINAS:6, GATES:7, ANNE:8, ENC:9, CATHEDRAL:10, INN:11, AKHALL:12, BRIDGE:13, FLOWER:14,
+    RESTAURANT:15, SHOP:16, TOWNHALL:17
   };
 
   // ============================================================
@@ -110,15 +112,15 @@
     }
     // 旧市庁舎（中央 12,11..14,12）
     m[11][12] = T.WALL; m[11][13] = T.WALL; m[11][14] = T.WALL;
-    m[12][12] = T.WALL; m[12][13] = T.DOOR; m[12][14] = T.WALL;
+    m[12][12] = T.WALL; m[12][13] = T.TOWNHALL; m[12][14] = T.WALL;
 
     // マンタスの店（中央広場の北東 17,11..18,12）
     m[11][17] = T.WALL; m[11][18] = T.WALL;
-    m[12][17] = T.DOOR; m[12][18] = T.WALL;
+    m[12][17] = T.RESTAURANT; m[12][18] = T.WALL;
 
     // 雑貨屋（中央広場の北西 8,11..9,12）
     m[11][8] = T.WALL; m[11][9] = T.WALL;
-    m[12][8] = T.DOOR; m[12][9] = T.WALL;
+    m[12][8] = T.SHOP; m[12][9] = T.WALL;
 
     // 西側エリア（AKクワイア集会所＋宿屋 y=15-19）
     // 集会所（5,16..7,18）
@@ -172,8 +174,8 @@
   // NPC配置（キーパーソン込み）
   // ============================================================
   const NPCS = [
-    // AKクワイア仲間
-    { x: 7, y: 17, name: 'あきちゃん',  kind: 'akihiro', look: 'm1', hint: null },
+    // AKクワイア主催（固有キャラ：仲間2人とは別人）
+    { x: 7, y: 17, name: 'あきちゃん',  kind: 'akihiro', look: 'm3', hint: null },
     { x: 11, y: 17, name: 'みほさん',    kind: 'miho',    look: 'f5', hint: null },
     // リトアニア人キーパーソン
     { x: 17, y: 13, name: 'マンタス',    kind: 'mantas',  look: 'm4', hint: 'aciu'  },
@@ -380,89 +382,367 @@
       ctx.fillStyle = '#3a2a1a';
       ctx.fillRect(sx + 14, sy + 22, 4, 10);
     } else if (t === T.CATHEDRAL) {
-      // 大聖堂（白い列柱とドーム） — 3x3で配置されるので個々のタイルは部分描画
+      // 大聖堂（白い列柱、ドーム頂上に十字）
       rect(sx, sy, TILE, TILE, '#e8e0d0');
       ctx.fillStyle = '#b0a890';
       ctx.fillRect(sx, sy + TILE - 4, TILE, 4);
       ctx.fillStyle = '#c8c0a8';
-      // 列柱風
       for (let i = 0; i < 3; i++) {
-        ctx.fillRect(sx + 4 + i * 9, sy + 6, 4, TILE - 12);
+        ctx.fillRect(sx + 4 + i * 9, sy + 8, 4, TILE - 14);
       }
       ctx.fillStyle = '#6a3a1a';
       ctx.fillRect(sx, sy, TILE, 3);
+      // 中央ドーム＋十字（マップ上の中央列のタイルだけ装飾）
+      ctx.fillStyle = '#c8a070';
+      ctx.fillRect(sx + 12, sy + 4, 8, 4);
+      ctx.fillStyle = '#dac030';
+      ctx.fillRect(sx + 15, sy - 2, 2, 5);
+      ctx.fillRect(sx + 14, sy - 1, 4, 1);
     } else if (t === T.INN) {
-      // 宿屋入口（赤屋根＋月マーク）
+      // 宿屋入口（赤屋根＋ベッド看板）
       rect(sx, sy, TILE, TILE, '#aa3030');
-      rect(sx + 4, sy + 12, 24, 20, '#8a4a2a');
-      rect(sx + 12, sy + 16, 8, 16, '#3a2a1a');
-      ctx.fillStyle = '#dac030';
-      ctx.beginPath(); ctx.arc(sx + 16, sy + 6, 4, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#aa3030';
-      ctx.beginPath(); ctx.arc(sx + 18, sy + 6, 4, 0, Math.PI * 2); ctx.fill();
+      // 屋根の段差
+      ctx.fillStyle = '#882020';
+      ctx.fillRect(sx, sy + 2, TILE, 1);
+      ctx.fillRect(sx, sy + 6, TILE, 1);
+      ctx.fillRect(sx, sy + 10, TILE, 1);
+      // 壁＋ドア
+      rect(sx + 4, sy + 12, 24, 20, '#c8a878');
+      rect(sx + 12, sy + 18, 8, 14, '#3a2a1a');
+      ctx.fillStyle = '#dac030'; ctx.fillRect(sx + 19, sy + 25, 1, 2);
+      // 看板（白地にベッド絵）
+      rect(sx + 5, sy + 13, 22, 7, '#fff8e0');
+      ctx.strokeStyle = '#6a3a1a'; ctx.lineWidth = 1;
+      ctx.strokeRect(sx + 5, sy + 13, 22, 7);
+      // ベッド絵
+      ctx.fillStyle = '#3a4abe'; ctx.fillRect(sx + 8,  sy + 16, 16, 3);
+      ctx.fillStyle = '#fff';    ctx.fillRect(sx + 9,  sy + 15, 6, 2);
+      ctx.fillStyle = '#5a3a1a'; ctx.fillRect(sx + 8,  sy + 18, 1, 2);
+      ctx.fillRect(sx + 23, sy + 18, 1, 2);
     } else if (t === T.AKHALL) {
-      // AKクワイア集会所（音符マーク）
+      // AKクワイア集会所（青屋根＋音符看板）
       rect(sx, sy, TILE, TILE, '#3a4abe');
-      rect(sx + 4, sy + 12, 24, 20, '#5a3a1a');
-      rect(sx + 12, sy + 16, 8, 16, '#3a2a1a');
-      ctx.fillStyle = '#dac030';
-      ctx.fillRect(sx + 8, sy + 4, 2, 6);
-      ctx.beginPath(); ctx.arc(sx + 8, sy + 10, 2, 0, Math.PI * 2); ctx.fill();
-      ctx.fillRect(sx + 22, sy + 4, 2, 6);
-      ctx.beginPath(); ctx.arc(sx + 22, sy + 10, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#2a3a8e';
+      ctx.fillRect(sx, sy + 2, TILE, 1);
+      ctx.fillRect(sx, sy + 6, TILE, 1);
+      ctx.fillRect(sx, sy + 10, TILE, 1);
+      // 壁＋ドア
+      rect(sx + 4, sy + 12, 24, 20, '#c8a878');
+      rect(sx + 12, sy + 18, 8, 14, '#3a2a1a');
+      ctx.fillStyle = '#dac030'; ctx.fillRect(sx + 19, sy + 25, 1, 2);
+      // 看板
+      rect(sx + 5, sy + 13, 22, 7, '#fff8e0');
+      ctx.strokeStyle = '#6a3a1a'; ctx.lineWidth = 1;
+      ctx.strokeRect(sx + 5, sy + 13, 22, 7);
+      // 音符（八分音符×2）
+      ctx.fillStyle = '#3a2a1a';
+      ctx.fillRect(sx + 9,  sy + 14, 1, 5);
+      ctx.beginPath(); ctx.arc(sx + 9,  sy + 19, 1.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillRect(sx + 14, sy + 14, 1, 5);
+      ctx.beginPath(); ctx.arc(sx + 14, sy + 19, 1.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillRect(sx + 9, sy + 14, 6, 1); // 連桁
+      ctx.fillRect(sx + 19, sy + 14, 1, 5);
+      ctx.beginPath(); ctx.arc(sx + 19, sy + 19, 1.5, 0, Math.PI * 2); ctx.fill();
     } else if (t === T.BRIDGE) {
       rect(sx, sy, TILE, TILE, '#3a6abe');
       rect(sx + 2, sy + 8, TILE - 4, TILE - 16, '#a88858');
       ctx.fillStyle = '#6a3a1a';
       for (let i = 0; i < 4; i++) ctx.fillRect(sx + 4 + i * 7, sy + 10, 2, TILE - 20);
+    } else if (t === T.RESTAURANT) {
+      // 料理屋（緑屋根＋フォーク&ナイフ看板）
+      rect(sx, sy, TILE, TILE, '#3a8a4a');
+      rect(sx + 4, sy + 12, 24, 20, '#8a4a2a');
+      rect(sx + 12, sy + 16, 8, 16, '#3a2a1a'); // ドア
+      ctx.fillStyle = '#dac030'; ctx.fillRect(sx + 19, sy + 24, 1, 2); // ノブ
+      // 看板（白地に料理アイコン）
+      rect(sx + 4, sy + 4, 24, 8, '#fff8e0');
+      rect(sx + 4, sy + 4, 24, 1, '#6a3a1a');
+      rect(sx + 4, sy + 11, 24, 1, '#6a3a1a');
+      // ナイフ
+      ctx.fillStyle = '#888';     ctx.fillRect(sx + 9,  sy + 6, 2, 4);
+      ctx.fillStyle = '#3a2a1a';  ctx.fillRect(sx + 9,  sy + 9, 2, 1);
+      // フォーク
+      ctx.fillStyle = '#888';     ctx.fillRect(sx + 21, sy + 6, 2, 4);
+      ctx.fillRect(sx + 19, sy + 5, 1, 2); ctx.fillRect(sx + 23, sy + 5, 1, 2);
+    } else if (t === T.SHOP) {
+      // 雑貨屋（黄屋根＋コイン看板）
+      rect(sx, sy, TILE, TILE, '#dac030');
+      rect(sx + 4, sy + 12, 24, 20, '#8a4a2a');
+      rect(sx + 12, sy + 16, 8, 16, '#3a2a1a');
+      ctx.fillStyle = '#dac030'; ctx.fillRect(sx + 19, sy + 24, 1, 2);
+      // 看板
+      rect(sx + 4, sy + 4, 24, 8, '#fff8e0');
+      rect(sx + 4, sy + 4, 24, 1, '#6a3a1a');
+      rect(sx + 4, sy + 11, 24, 1, '#6a3a1a');
+      // コイン
+      ctx.fillStyle = '#dac030';
+      ctx.beginPath(); ctx.arc(sx + 12, sy + 8, 3, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(sx + 20, sy + 8, 3, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#8a6a10';
+      ctx.fillRect(sx + 11, sy + 8, 3, 1);
+      ctx.fillRect(sx + 19, sy + 8, 3, 1);
+    } else if (t === T.TOWNHALL) {
+      // 旧市庁舎（白い壁＋三色旗）
+      rect(sx, sy, TILE, TILE, '#e8e0d0');
+      rect(sx + 2, sy + 14, TILE - 4, TILE - 14, '#e0d8c0');
+      // 大きな扉
+      rect(sx + 11, sy + 14, 10, 18, '#3a2a1a');
+      ctx.fillStyle = '#dac030';
+      ctx.fillRect(sx + 19, sy + 22, 1, 2);
+      // 列柱
+      ctx.fillStyle = '#a89878';
+      ctx.fillRect(sx + 4, sy + 16, 3, 16);
+      ctx.fillRect(sx + 25, sy + 16, 3, 16);
+      // 三色旗（上部）
+      ctx.fillStyle = '#6a3a1a'; ctx.fillRect(sx + 15, sy, 2, 14); // ポール
+      ctx.fillStyle = '#dac030'; ctx.fillRect(sx + 17, sy + 1, 8, 2);
+      ctx.fillStyle = '#3aae5a'; ctx.fillRect(sx + 17, sy + 3, 8, 2);
+      ctx.fillStyle = '#c83030'; ctx.fillRect(sx + 17, sy + 5, 8, 2);
+      // 屋根
+      ctx.fillStyle = '#6a3a1a';
+      ctx.fillRect(sx, sy + 12, TILE, 2);
     }
   }
 
-  // 32px キャラ描画（lookに応じて差し替え）
-  function drawChar(sx, sy, dir, look) {
-    const L = lookById(look);
-    // 影
-    ctx.fillStyle = 'rgba(0,0,0,0.25)';
-    ctx.fillRect(sx + 8, sy + 28, 16, 3);
-    // 胴体
-    rect(sx + 10, sy + 16, 12, 12, L.cloth);
-    // 足
-    rect(sx + 10, sy + 26, 5, 5, '#3a2a1a');
-    rect(sx + 17, sy + 26, 5, 5, '#3a2a1a');
-    // 顔
-    rect(sx + 11, sy + 6, 10, 11, L.skin);
-    // 髪
-    if (L.longHair) {
-      rect(sx + 9, sy + 4, 14, 16, L.hair);
-      rect(sx + 11, sy + 8, 10, 9, L.skin); // 顔面再描画
-    } else if (L.ponytail) {
-      rect(sx + 10, sy + 4, 12, 5, L.hair);
-      rect(sx + 22, sy + 5, 4, 12, L.hair);
-    } else {
-      rect(sx + 10, sy + 4, 12, 5, L.hair);
-    }
-    // 目
-    ctx.fillStyle = '#000';
-    if (dir === 'down')      { ctx.fillRect(sx + 13, sy + 11, 2, 3); ctx.fillRect(sx + 18, sy + 11, 2, 3); }
-    else if (dir === 'up')   { ctx.fillRect(sx + 13, sy + 5,  2, 1); ctx.fillRect(sx + 18, sy + 5,  2, 1); }
-    else if (dir === 'left') { ctx.fillRect(sx + 11, sy + 11, 2, 3); }
-    else                     { ctx.fillRect(sx + 19, sy + 11, 2, 3); }
-    // 眼鏡
-    if (L.glasses && (dir === 'down' || dir === 'up')) {
-      ctx.strokeStyle = '#000'; ctx.lineWidth = 1;
-      ctx.strokeRect(sx + 12, sy + 10, 4, 4);
-      ctx.strokeRect(sx + 17, sy + 10, 4, 4);
-      ctx.fillRect(sx + 16, sy + 12, 1, 1);
-    }
-    // 腕
-    rect(sx + 6,  sy + 17, 4, 7, L.skin);
-    rect(sx + 22, sy + 17, 4, 7, L.skin);
-    // 楽譜（主人公だけ持つわけではないが小道具として）
-    rect(sx + 12, sy + 19, 8, 5, '#fff');
-    ctx.fillStyle = '#000';
-    ctx.fillRect(sx + 14, sy + 21, 1, 1);
-    ctx.fillRect(sx + 17, sy + 21, 1, 1);
+  // 色ヘルパー
+  function darken(hex, factor) {
+    const m = hex.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+    if (!m) return hex;
+    const r = Math.max(0, Math.min(255, Math.floor(parseInt(m[1], 16) * factor)));
+    const g = Math.max(0, Math.min(255, Math.floor(parseInt(m[2], 16) * factor)));
+    const b = Math.max(0, Math.min(255, Math.floor(parseInt(m[3], 16) * factor)));
+    return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
   }
+  function lighten(hex, factor) { return darken(hex, factor); } // factor>1で明るく
+
+  // FFV風チビキャラ描画（32×32、2.5頭身、アウトラインつき）
+  // 設計:
+  //   y= 0-14: 頭（髪+顔）— タイル上半分
+  //   y=15-23: 胴体+腕
+  //   y=24-29: 脚+靴
+  // sx,sy = 32x32タイル左上
+  function drawCharDetailed(c, sx, sy, dir, look) {
+    const L = lookById(look);
+    const O = '#1a0a14';
+    const skin   = L.skin;
+    const skinD  = darken(L.skin, 0.78);
+    const skinH  = lighten(L.skin, 1.08);
+    const hair   = L.hair;
+    const hairD  = darken(L.hair, 0.6);
+    const hairH  = lighten(L.hair, 1.3);
+    const cloth  = L.cloth;
+    const clothD = darken(L.cloth, 0.6);
+    const clothH = lighten(L.cloth, 1.3);
+    const pants  = '#3a2820';
+    const pantsD = '#1a1008';
+    const boot   = '#2a1810';
+    const bootH  = '#5a3820';
+
+    function r(x, y, w, h, col) { c.fillStyle = col; c.fillRect(sx + x, sy + y, w, h); }
+    function p(x, y, col)       { c.fillStyle = col; c.fillRect(sx + x, sy + y, 1, 1); }
+
+    // 影（地面）
+    r(7, 30, 18, 2, 'rgba(0,0,0,0.35)');
+
+    // ============ 髪・頭の輪郭（後ろ髪→顔→前髪 の順で重ね描き） ============
+    // 後ろ髪（longHair時）
+    if (L.longHair) {
+      r(5, 4, 22, 18, O);              // 輪郭（広め）
+      r(6, 5, 20, 16, hair);           // 髪本体
+      r(6, 18, 20, 1, hairD);          // 影
+    }
+
+    // ============ 頭の輪郭（アウトライン） ============
+    // 頭全体のシルエットをアウトラインで描く（角丸風）
+    r(8, 1,  16, 1, O);
+    r(7, 2,  18, 1, O);
+    r(6, 3,  20, 1, O);
+    r(5, 4,  22, 1, O);
+    r(5, 5,   1, 9, O); r(26, 5,  1, 9, O);   // 側面
+    r(6, 14,  1, 1, O); r(25, 14, 1, 1, O);   // 顎角
+    r(7, 15, 18, 1, O);                       // 顎下
+
+    // ============ 顔（肌） ============
+    r(7, 4, 18, 11, skin);            // 顔ベース（広め、上から髪で塗る）
+    r(8, 14, 16, 1, skin);            // 顎ライン
+    // 顔の影（左半分）
+    r(7, 13, 18, 1, skinD);
+
+    // ============ 髪（前髪・トップ） ============
+    if (L.longHair) {
+      // 前髪（眉上まで覆う）
+      r(7, 4, 18, 4, hair);
+      r(7, 8,  4, 4, hair);            // 左サイド
+      r(21, 8, 4, 4, hair);            // 右サイド
+      // ハイライト
+      r(10, 5, 6, 1, hairH);
+    } else if (L.ponytail) {
+      // 前髪（M字）
+      r(7, 4, 18, 3, hair);
+      r(7, 7,  4, 2, hair);
+      r(21, 7, 4, 2, hair);
+      // 後ろの結い目＋ポニー（横向きに少し見える）
+      r(24, 7, 3, 3, O);
+      r(25, 8, 1, 1, hair);
+      r(26, 9,  1, 11, O);
+      r(27, 10, 1,  9, hair);
+      r(27, 18, 1,  1, hairD);
+      // ハイライト
+      r(11, 5, 6, 1, hairH);
+    } else {
+      // 短髪（前髪あり）
+      r(7, 4, 18, 4, hair);            // 前髪面
+      r(7, 8,  3, 2, hair);            // 左もみあげ
+      r(22, 8, 3, 2, hair);            // 右もみあげ
+      // ハイライト
+      r(10, 5, 4, 1, hairH);
+      r(18, 5, 4, 1, hairH);
+    }
+
+    // ============ 耳（顔の横、髪の下） ============
+    p(6, 10, skin);  p(6, 11, skin);
+    p(25, 10, skin); p(25, 11, skin);
+    p(6, 12, skinD); p(25, 12, skinD);
+
+    // ============ 目（大きめ。FFV風の白目+黒目） ============
+    // 向きごとに位置調整
+    if (dir === 'down') {
+      // 左目
+      r(10, 9, 4, 4, '#fff');
+      r(10, 9, 4, 1, O);
+      r(10, 12, 4, 1, O);
+      r(10, 9, 1, 4, O); r(13, 9, 1, 4, O);
+      r(11, 10, 2, 2, O);                 // 黒目
+      p(12, 10, '#fff');                  // ハイライト
+      // 右目
+      r(18, 9, 4, 4, '#fff');
+      r(18, 9, 4, 1, O);
+      r(18, 12, 4, 1, O);
+      r(18, 9, 1, 4, O); r(21, 9, 1, 4, O);
+      r(19, 10, 2, 2, O);
+      p(20, 10, '#fff');
+    } else if (dir === 'up') {
+      // 後頭部側 — 髪を下まで延長
+      r(7, 9, 18, 5, hair);
+      r(7, 9, 18, 1, hairD);
+    } else if (dir === 'left') {
+      r(9, 9, 4, 4, '#fff');
+      r(9, 9, 4, 1, O); r(9, 12, 4, 1, O);
+      r(9, 9, 1, 4, O); r(12, 9, 1, 4, O);
+      r(9, 10, 2, 2, O);
+      p(10, 10, '#fff');
+    } else { // right
+      r(19, 9, 4, 4, '#fff');
+      r(19, 9, 4, 1, O); r(19, 12, 4, 1, O);
+      r(19, 9, 1, 4, O); r(22, 9, 1, 4, O);
+      r(20, 10, 2, 2, O);
+      p(21, 10, '#fff');
+    }
+
+    // ============ 眉 ============
+    if (dir === 'down') {
+      r(10, 8,  4, 1, hairD);
+      r(18, 8,  4, 1, hairD);
+    } else if (dir === 'left') {
+      r(9, 8, 4, 1, hairD);
+    } else if (dir === 'right') {
+      r(19, 8, 4, 1, hairD);
+    }
+
+    // ============ 口 ============
+    if (dir === 'down') {
+      r(14, 13, 4, 1, '#a02030');
+      p(14, 13, O); p(17, 13, O);
+    } else if (dir === 'left') {
+      r(11, 13, 3, 1, '#a02030');
+    } else if (dir === 'right') {
+      r(18, 13, 3, 1, '#a02030');
+    }
+
+    // ============ 頬の赤み ============
+    if (dir === 'down') {
+      r(8, 11, 2, 2, 'rgba(230,100,110,0.45)');
+      r(22, 11, 2, 2, 'rgba(230,100,110,0.45)');
+    }
+
+    // ============ 眼鏡 ============
+    if (L.glasses && dir === 'down') {
+      r(10, 9, 4, 1, O); r(10, 12, 4, 1, O);
+      r(10, 9, 1, 4, O); r(13, 9, 1, 4, O);
+      r(18, 9, 4, 1, O); r(18, 12, 4, 1, O);
+      r(18, 9, 1, 4, O); r(21, 9, 1, 4, O);
+      r(14, 10, 4, 1, O);                  // ブリッジ
+      r(11, 10, 2, 2, '#bfdfff');          // レンズ反射
+      r(19, 10, 2, 2, '#bfdfff');
+      r(11, 10, 2, 2, 'rgba(255,255,255,0.3)');
+    }
+
+    // ============ 首 ============
+    r(13, 15, 6, 1, skinD);
+
+    // ============ 胴体（服） ============
+    // アウトライン（肩〜腰）
+    r(7, 16, 18, 1, O);
+    r(6, 17, 1,  6, O); r(25, 17, 1, 6, O);
+    r(7, 23, 18, 1, O);
+    // 服本体
+    r(7, 17, 18, 6, cloth);
+    // シェード（左下）
+    r(7, 22, 18, 1, clothD);
+    r(7, 17, 1,  6, clothD);
+    // ハイライト（右肩）
+    r(8, 17, 6, 1, clothH);
+    // 襟（首元）
+    r(13, 16, 6, 2, '#fff8e0');
+    r(14, 17, 4, 1, clothD);
+    p(13, 16, O); p(18, 16, O);
+    p(13, 17, O); p(18, 17, O);
+    // ボタン
+    p(15, 19, '#dac030'); p(15, 21, '#dac030');
+
+    // ============ 腕 ============
+    // 左腕
+    r(4, 17, 1, 6, O); r(7, 17, 1, 6, O);
+    r(4, 23, 4, 1, O);
+    r(5, 17, 2, 6, cloth);
+    r(5, 22, 2, 1, clothD);
+    // 手
+    r(5, 21, 2, 2, skin);
+    r(4, 21, 1, 2, O);
+    // 右腕
+    r(24, 17, 1, 6, O); r(27, 17, 1, 6, O);
+    r(24, 23, 4, 1, O);
+    r(25, 17, 2, 6, cloth);
+    r(25, 22, 2, 1, clothD);
+    r(25, 21, 2, 2, skin);
+    r(27, 21, 1, 2, O);
+
+    // ============ 脚（ズボン） ============
+    // 左脚
+    r(8, 24, 1, 5, O); r(13, 24, 1, 5, O);
+    r(8, 28, 6, 1, O);
+    r(9, 24, 4, 4, pants);
+    r(9, 28, 4, 1, pantsD);
+    // 右脚
+    r(18, 24, 1, 5, O); r(23, 24, 1, 5, O);
+    r(18, 28, 6, 1, O);
+    r(19, 24, 4, 4, pants);
+    r(19, 28, 4, 1, pantsD);
+
+    // ============ 靴 ============
+    // 左
+    r(7, 27, 1, 3, O); r(14, 27, 1, 3, O);
+    r(7, 30, 8, 1, O);
+    r(8, 28, 6, 2, boot);
+    r(8, 28, 6, 1, bootH);
+    // 右
+    r(17, 27, 1, 3, O); r(24, 27, 1, 3, O);
+    r(17, 30, 8, 1, O);
+    r(18, 28, 6, 2, boot);
+    r(18, 28, 6, 1, bootH);
+  }
+
+  function drawChar(sx, sy, dir, look) { drawCharDetailed(ctx, sx, sy, dir, look); }
 
   function drawEnemy(sx, sy, type) {
     if (type === 'guardian') {
@@ -604,29 +884,7 @@
     showNewGameUI();
   }
 
-  function drawCharOnCtx(c, sx, sy, dir, look) {
-    // drawCharの簡易版（ctx指定可）
-    const L = lookById(look);
-    c.fillStyle = 'rgba(0,0,0,0.25)'; c.fillRect(sx + 8, sy + 28, 16, 3);
-    c.fillStyle = L.cloth; c.fillRect(sx + 10, sy + 16, 12, 12);
-    c.fillStyle = '#3a2a1a'; c.fillRect(sx + 10, sy + 26, 5, 5); c.fillRect(sx + 17, sy + 26, 5, 5);
-    c.fillStyle = L.skin; c.fillRect(sx + 11, sy + 6, 10, 11);
-    if (L.longHair) {
-      c.fillStyle = L.hair; c.fillRect(sx + 9, sy + 4, 14, 16);
-      c.fillStyle = L.skin; c.fillRect(sx + 11, sy + 8, 10, 9);
-    } else if (L.ponytail) {
-      c.fillStyle = L.hair; c.fillRect(sx + 10, sy + 4, 12, 5); c.fillRect(sx + 22, sy + 5, 4, 12);
-    } else {
-      c.fillStyle = L.hair; c.fillRect(sx + 10, sy + 4, 12, 5);
-    }
-    c.fillStyle = '#000';
-    c.fillRect(sx + 13, sy + 11, 2, 3); c.fillRect(sx + 18, sy + 11, 2, 3);
-    if (L.glasses) {
-      c.strokeStyle = '#000'; c.lineWidth = 1;
-      c.strokeRect(sx + 12, sy + 10, 4, 4); c.strokeRect(sx + 17, sy + 10, 4, 4);
-    }
-    c.fillStyle = L.skin; c.fillRect(sx + 6, sy + 17, 4, 7); c.fillRect(sx + 22, sy + 17, 4, 7);
-  }
+  function drawCharOnCtx(c, sx, sy, dir, look) { drawCharDetailed(c, sx, sy, dir, look); }
 
   function showNewGameUI() {
     const d = document.getElementById('dialog');
@@ -723,11 +981,7 @@
     state.party[0].name = state.tmp.names[0]; state.party[0].look = state.tmp.looks[0];
     state.party[1].name = state.tmp.names[1]; state.party[1].look = state.tmp.looks[1];
     state.party[2].name = state.tmp.names[2]; state.party[2].look = state.tmp.looks[2];
-    // あきちゃん・みほさんNPCの見た目を仲間2人と同期
-    NPCS.find(n => n.kind === 'akihiro').look = state.party[1].look;
-    NPCS.find(n => n.kind === 'akihiro').name = state.party[1].name + '（あき役）';
-    NPCS.find(n => n.kind === 'miho').look    = state.party[2].look;
-    NPCS.find(n => n.kind === 'miho').name    = state.party[2].name + '（みほ役）';
+    // あきちゃん・みほさんは固有キャラ（NPCS定義のまま、上書きしない）
     state.scene = 'field';
     saveGame();
     setDialog([
@@ -771,46 +1025,95 @@
 
   function renderBattle() {
     clear('#1a1a2a');
+    // 敵側の背景（夜空）
     ctx.fillStyle = '#2a3a5a';
-    ctx.fillRect(0, 0, CANVAS_W, 200);
+    ctx.fillRect(0, 0, CANVAS_W, 180);
+    // 雲
     ctx.fillStyle = '#5a8aae';
     for (let i = 0; i < 8; i++) {
       ctx.fillRect(30 + i * 48, 36 + (i % 2) * 24, 18, 10);
     }
-    drawEnemy(130, 40, state.enemy.type);
+    // 星
+    ctx.fillStyle = '#fff';
+    for (let i = 0; i < 20; i++) {
+      const x = (i * 79) % CANVAS_W;
+      const y = (i * 31) % 100;
+      ctx.fillRect(x, y, 1, 1);
+    }
+    // 敵
+    drawEnemy(130, 30, state.enemy.type);
     // 敵HPバー
     const hpRatio = state.enemy.hp / state.enemy.maxHp;
-    rect(70, 220, 240, 10, '#3a2a1a');
-    rect(72, 222, 236 * Math.max(0, hpRatio), 6, '#dac030');
+    rect(60, 195, 264, 12, '#3a2a1a');
+    rect(62, 197, 260 * Math.max(0, hpRatio), 8, '#dac030');
     ctx.fillStyle = '#fff';
-    ctx.font = '12px sans-serif';
+    ctx.font = 'bold 12px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(state.enemy.name + ' 感動度 ' + Math.max(0, state.enemy.hp) + '/' + state.enemy.maxHp, CANVAS_W / 2, 216);
-    // パーティ3人
+    ctx.fillText(state.enemy.name + ' 感動度 ' + Math.max(0, state.enemy.hp) + '/' + state.enemy.maxHp, CANVAS_W / 2, 190);
+
+    // 地面
+    ctx.fillStyle = '#5a3a2a';
+    ctx.fillRect(0, 215, CANVAS_W, 4);
+    ctx.fillStyle = '#3a2a1a';
+    ctx.fillRect(0, 219, CANVAS_W, 165);
+
+    // パーティ3人を立ち絵で表示（左から並べる）
     ctx.textAlign = 'left';
     state.party.forEach((p, i) => {
-      const px = 10 + i * 125;
-      const py = 245;
-      ctx.fillStyle = p.alive ? '#222' : '#3a1a1a';
-      ctx.fillRect(px, py, 120, 60);
+      const slotW = 128;
+      const px = i * slotW;
+      const py = 222;
+      // スロット背景
+      ctx.fillStyle = p.alive ? 'rgba(0,0,0,0.3)' : 'rgba(60,20,20,0.6)';
+      ctx.fillRect(px + 2, py, slotW - 4, 162);
+      // 立ち絵を2倍拡大で描画
+      const cx = px + (slotW - TILE * 2) / 2;
+      const cy = py + 4;
+      const tmp = document.createElement('canvas');
+      tmp.width = TILE; tmp.height = TILE;
+      const tctx = tmp.getContext('2d');
+      drawCharDetailed(tctx, 0, 0, 'down', p.look);
+      ctx.imageSmoothingEnabled = false;
+      // 倒れ表現: 透明度＋傾けるかわりに反転
+      if (!p.alive) {
+        ctx.save();
+        ctx.globalAlpha = 0.5;
+        ctx.translate(cx + TILE, cy + TILE * 2);
+        ctx.rotate(Math.PI / 2);
+        ctx.drawImage(tmp, 0, 0, TILE * 2, TILE * 2);
+        ctx.restore();
+      } else {
+        ctx.drawImage(tmp, cx, cy, TILE * 2, TILE * 2);
+      }
+      // 名前
       ctx.fillStyle = p.alive ? '#fff' : '#888';
-      ctx.font = 'bold 12px sans-serif';
-      ctx.fillText(p.name, px + 6, py + 15);
+      ctx.font = 'bold 11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(p.name, px + slotW / 2, py + TILE * 2 + 18);
       // HPバー
-      ctx.fillStyle = '#3a2a1a'; ctx.fillRect(px + 6, py + 22, 108, 6);
-      ctx.fillStyle = '#3aae5a'; ctx.fillRect(px + 6, py + 22, 108 * Math.max(0, p.hp / p.maxHp), 6);
-      ctx.fillStyle = '#fff'; ctx.font = '10px sans-serif';
-      ctx.fillText(`HP ${Math.max(0,p.hp)}/${p.maxHp}`, px + 6, py + 36);
+      const barW = slotW - 16;
+      const bx = px + 8;
+      const byH = py + TILE * 2 + 22;
+      ctx.fillStyle = '#3a2a1a'; ctx.fillRect(bx, byH, barW, 6);
+      const hpCol = p.hp / p.maxHp < 0.3 ? '#c83030' : '#3aae5a';
+      ctx.fillStyle = hpCol;     ctx.fillRect(bx, byH, barW * Math.max(0, p.hp / p.maxHp), 6);
+      ctx.fillStyle = '#fff';    ctx.font = '9px sans-serif'; ctx.textAlign = 'left';
+      ctx.fillText(`HP ${Math.max(0, p.hp)}/${p.maxHp}`, bx, byH + 14);
       // MPバー
-      ctx.fillStyle = '#3a2a1a'; ctx.fillRect(px + 6, py + 40, 108, 5);
-      ctx.fillStyle = '#3a8abe'; ctx.fillRect(px + 6, py + 40, 108 * Math.max(0, p.mp / p.maxMp), 5);
-      ctx.fillText(`MP ${Math.max(0,p.mp)}/${p.maxMp}`, px + 6, py + 54);
+      const byM = byH + 18;
+      ctx.fillStyle = '#3a2a1a'; ctx.fillRect(bx, byM, barW, 5);
+      ctx.fillStyle = '#3a8abe'; ctx.fillRect(bx, byM, barW * Math.max(0, p.mp / p.maxMp), 5);
+      ctx.fillStyle = '#fff';
+      ctx.fillText(`MP ${Math.max(0, p.mp)}/${p.maxMp}`, bx, byM + 12);
     });
+
     if (state.buff > 0) {
       ctx.fillStyle = '#dac030';
       ctx.font = 'bold 11px sans-serif';
-      ctx.fillText('★エホーマイ ' + state.buff, 10, 318);
+      ctx.textAlign = 'right';
+      ctx.fillText('★エホーマイ残' + state.buff + 'T', CANVAS_W - 6, 213);
     }
+    ctx.textAlign = 'left';
   }
 
   function render() {
@@ -893,8 +1196,9 @@
   function talkNPC(npc) {
     if (npc.kind === 'akihiro') {
       setDialog([
-        `${state.party[1].name}：「Labas! 元気でやってるかい？」`,
-        '「ダイヌシュベンテはもうすぐだ。ピースを集めるぞ！」',
+        'あきちゃん：「Labas! よう、来たね〜！」',
+        `「${state.party[0].name}くん（ちゃん）、ダイヌシュベンテはもうすぐだ。」`,
+        `「${state.party[1].name}と${state.party[2].name}も連れてるんだね、心強い！」`,
         '「街の人にはリト語のあいさつから話しかけよう：',
         '・Labas（ラバス）= こんにちは',
         '・Ačiū（アチュー）= ありがとう',
@@ -905,10 +1209,10 @@
     }
     if (npc.kind === 'miho') {
       setDialog([
-        `${state.party[2].name}：「ようこそ私の宿屋へ！」`,
-        '「ここで休めばHPもMPも全回復するよ。料金はサービスしとくね♪」',
+        'みほさん：「あら、いらっしゃい！」',
+        '「ここは私の宿屋。HPもMPも全回復するから、いつでも寄ってね。」',
         '「冒険の記録もここで自動セーブしておくから安心してね。」',
-        '「（宿屋の入口（赤屋根♪）でAボタンで休める）」',
+        '「（宿屋の入口（赤屋根のベッド看板）でAボタンで休める）」',
       ]);
       return;
     }
