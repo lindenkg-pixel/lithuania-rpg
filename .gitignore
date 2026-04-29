@@ -1,0 +1,24 @@
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*~
+
+# Node (将来使う場合)
+node_modules/
+package-lock.json
+
+# Python (ローカルサーバー用venv等)
+.venv/
+__pycache__/
+*.pyc
+
+# ローカル作業
+notes.md
+scratch/
+*.local.*

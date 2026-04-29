@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="theme-color" content="#1a1a2a">
+<title>リトアニア音楽紀行</title>
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:#0e0e1a;color:#fff;font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN",sans-serif;overscroll-behavior:none;}
+  body{display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:8px;touch-action:manipulation;}
+  #game-root{width:100%;max-width:380px;user-select:none;-webkit-user-select:none;}
+  #screen{width:100%;display:block;background:#000;border-radius:8px;image-rendering:pixelated;border:1px solid #333;}
+  #dialog{min-height:90px;background:#1a1a2a;border:1px solid #333;border-radius:8px;padding:12px 14px;margin-top:10px;font-size:14px;line-height:1.6;color:#fff;}
+  #status{display:flex;justify-content:space-between;font-size:12px;color:#aaa;margin-top:8px;padding:0 4px;}
+  #controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;align-items:center;}
+  #dpad{display:grid;grid-template-columns:repeat(3,44px);grid-template-rows:repeat(3,44px);gap:4px;justify-self:center;}
+  .pad{font-size:14px;background:#222;border:1px solid #555;border-radius:8px;color:#fff;cursor:pointer;}
+  .pad:active{background:#333;}
+  .act{width:120px;height:46px;font-size:14px;background:#1a1a2a;border:1px solid #555;border-radius:8px;color:#fff;cursor:pointer;}
+  .act:active{background:#333;}
+  .right-col{display:flex;flex-direction:column;gap:8px;align-items:center;}
+  button:focus{outline:none;}
+</style>
+</head>
+<body>
+<div id="game-root">
+  <canvas id="screen" width="320" height="320"></canvas>
+  <div id="dialog">Aを押してはじめる</div>
+  <div id="status"></div>
+  <div id="controls">
+    <div id="dpad">
+      <div></div><button data-dir="up" class="pad">▲</button><div></div>
+      <button data-dir="left" class="pad">◀</button><div></div><button data-dir="right" class="pad">▶</button>
+      <div></div><button data-dir="down" class="pad">▼</button><div></div>
+    </div>
+    <div class="right-col">
+      <button id="btnA" class="act">A 決定</button>
+      <button id="btnB" class="act">B 戻る</button>
+    </div>
+  </div>
+</div>
+<script src="js/game.js"></script>
+</body>
+</html>
