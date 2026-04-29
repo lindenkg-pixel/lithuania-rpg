@@ -1,8 +1,7 @@
 // ============================================================
 // リトアニア音楽紀行 — メインゲームロジック
-// 現在: ヴィリニュス縦スライス
-// Phase 1 ①: マップ32×32、タイル32px、プレイヤー追従カメラ、384×384キャンバス
-// 今後: js/maps/, js/data/, js/systems/ に分割予定
+// ヴィリニュス縦スライス（フェーズA: 実物寄せ再配置＋タイトル＋3人パーティ＋宿屋＋オートセーブ）
+// 今後 js/maps/, js/data/, js/systems/ に分割予定
 // ============================================================
 
 (function () {
@@ -13,65 +12,156 @@
   ctx.imageSmoothingEnabled = false;
 
   // ============================================================
-  // 描画・マップ定数
+  // 定数
   // ============================================================
   const TILE = 32;
   const VIEW_COLS = 12;
   const VIEW_ROWS = 12;
   const CANVAS_W = VIEW_COLS * TILE; // 384
-  const CANVAS_H = VIEW_ROWS * TILE; // 384
+  const CANVAS_H = VIEW_ROWS * TILE;
   const MAP_COLS = 32;
   const MAP_ROWS = 32;
+  const SAVE_KEY = 'lithuania-rpg-save';
+  const SAVE_VERSION = 1;
+
+  // タイル定義
+  // 0:草地 1:道(石畳) 2:壁 3:木 4:水 5:一般入口
+  // 6:ゲディミナス塔 7:夜明けの門 8:聖アンナ教会
+  // 9:エンカウント草むら 10:大聖堂 11:宿屋入口 12:集会所入口 13:橋 14:花畑
+  const T = {
+    GRASS:0, ROAD:1, WALL:2, TREE:3, WATER:4, DOOR:5,
+    GEDIMINAS:6, GATES:7, ANNE:8, ENC:9, CATHEDRAL:10, INN:11, AKHALL:12, BRIDGE:13, FLOWER:14
+  };
 
   // ============================================================
-  // マップデータ（将来 js/maps/vilnius.js に分離）
-  // タイル定義:
-  //   0: 草地 / 1: 道 / 2: 建物壁 / 3: 木 / 4: 水
-  //   5: 建物入口 / 6: ゲディミナス塔 / 7: 夜明けの門 / 8: 聖アンナ教会
-  //   9: エンカウント草むら
-  // 32×32マップ。中央 (8,8)..(23,23) に旧16×16の街。Phase 1②で実物寄せに再配置予定。
+  // 見た目（男4＋女8 = 12種類）
+  // ============================================================
+  const LOOKS = [
+    // 男性4種
+    { id:'m1', sex:'m', name:'青年（茶）',   skin:'#f0c89a', hair:'#5a3a1a', cloth:'#3a4abe' },
+    { id:'m2', sex:'m', name:'青年（黒）',   skin:'#f0c89a', hair:'#1a1a1a', cloth:'#aa3030' },
+    { id:'m3', sex:'m', name:'青年（金）',   skin:'#f0c89a', hair:'#dac030', cloth:'#3aae5a' },
+    { id:'m4', sex:'m', name:'青年（眼鏡）', skin:'#f0c89a', hair:'#3a2a1a', cloth:'#7a3aae', glasses:true },
+    // 女性8種
+    { id:'f1', sex:'f', name:'娘（茶髪）',   skin:'#f8d8aa', hair:'#5a3a1a', cloth:'#c83080' },
+    { id:'f2', sex:'f', name:'娘（黒髪）',   skin:'#f8d8aa', hair:'#1a1a1a', cloth:'#aa3030' },
+    { id:'f3', sex:'f', name:'娘（金髪）',   skin:'#f8d8aa', hair:'#dac030', cloth:'#3a8abe' },
+    { id:'f4', sex:'f', name:'娘（赤髪）',   skin:'#f8d8aa', hair:'#c84030', cloth:'#3aae5a' },
+    { id:'f5', sex:'f', name:'娘（ロング茶）', skin:'#f8d8aa', hair:'#7a4a2a', cloth:'#dac030', longHair:true },
+    { id:'f6', sex:'f', name:'娘（ロング黒）', skin:'#f8d8aa', hair:'#2a1a1a', cloth:'#7a3aae', longHair:true },
+    { id:'f7', sex:'f', name:'娘（ポニー）', skin:'#f8d8aa', hair:'#8a5a3a', cloth:'#3a4abe', ponytail:true },
+    { id:'f8', sex:'f', name:'娘（眼鏡）',   skin:'#f8d8aa', hair:'#3a2a1a', cloth:'#3a8a6a', glasses:true },
+  ];
+  const lookById = (id) => LOOKS.find(l => l.id === id) || LOOKS[0];
+
+  // ============================================================
+  // マップデータ（ヴィリニュス実物寄せ再配置）
+  //  北: 大聖堂広場＋ゲディミナス塔（ネリス川が北を流れる）
+  //  中央: 旧市庁舎広場＋マンタスのリトアニア料理店
+  //  西: AKクワイア集会所＋みほさんの宿屋
+  //  東: 聖アンナ教会
+  //  南: 夜明けの門
   // ============================================================
   const MAP = (() => {
-    const m = Array.from({ length: MAP_ROWS }, () => Array(MAP_COLS).fill(0));
+    const m = Array.from({ length: MAP_ROWS }, () => Array(MAP_COLS).fill(T.GRASS));
 
-    // 旧16×16の街を中央に配置
-    const town = [
-      [3,3,3,3,9,9,9,9,9,9,9,9,9,9,3,3],
-      [3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,3],
-      [3,1,2,2,1,2,2,2,1,2,2,1,6,1,9,3],
-      [3,1,5,2,1,2,5,2,1,5,2,1,1,1,9,3],
-      [3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,3],
-      [3,1,2,2,1,8,1,1,1,1,2,2,1,1,9,3],
-      [3,1,5,2,1,1,1,4,4,1,5,2,1,1,9,3],
-      [3,1,1,1,1,1,1,4,4,1,1,1,1,1,9,3],
-      [3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,3],
-      [3,9,9,1,2,2,1,1,1,2,2,2,1,9,9,3],
-      [3,9,9,1,5,2,1,1,1,5,2,2,1,9,9,3],
-      [3,9,9,1,1,1,1,1,1,1,1,1,1,9,9,3],
-      [3,9,9,9,1,1,1,7,1,1,1,9,9,9,9,3],
-      [3,9,9,9,1,1,1,1,1,1,1,9,9,9,9,3],
-      [3,3,3,3,1,1,1,1,1,1,1,3,3,3,3,3],
-      [3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3],
-    ];
-    for (let y = 0; y < 16; y++) {
-      for (let x = 0; x < 16; x++) m[y + 8][x + 8] = town[y][x];
-    }
-
-    // 街の外側は森に囲まれた草原
+    // 外周は森
     for (let y = 0; y < MAP_ROWS; y++) {
       for (let x = 0; x < MAP_COLS; x++) {
-        if (y >= 8 && y < 24 && x >= 8 && x < 24) continue;
-        // 外周1マスは木で境界を明示
-        if (y === 0 || y === MAP_ROWS - 1 || x === 0 || x === MAP_COLS - 1) {
-          m[y][x] = 3;
-        } else {
-          // 座標シードの疑似ランダムで散らす
-          const r = ((x * 73856093) ^ (y * 19349663)) >>> 0;
-          const v = r % 100;
-          if (v < 15) m[y][x] = 3;       // 木
-          else if (v < 35) m[y][x] = 9;  // エンカウント草むら
-          else m[y][x] = 0;              // 草地
-        }
+        if (y < 2 || y >= MAP_ROWS - 2 || x < 1 || x >= MAP_COLS - 1) m[y][x] = T.TREE;
+      }
+    }
+
+    // ネリス川（北を東西に流れる）
+    for (let x = 6; x <= 26; x++) {
+      m[3][x] = T.WATER;
+      m[4][x] = T.WATER;
+    }
+    // 川の縁
+    for (let x = 5; x <= 27; x++) {
+      if (m[3][x] !== T.WATER) m[3][x] = T.GRASS;
+      if (m[5][x] === T.TREE) m[5][x] = T.GRASS;
+    }
+
+    // 大聖堂広場（北中央 y=6-8）と大聖堂
+    // 大聖堂を3x3で配置(11,5..13,7)、入口は(12,8)
+    for (let y = 5; y <= 7; y++) for (let x = 11; x <= 13; x++) m[y][x] = T.CATHEDRAL;
+    m[8][12] = T.DOOR;
+    // 広場（草地）
+    for (let y = 6; y <= 9; y++) for (let x = 8; x <= 18; x++) {
+      if (m[y][x] === T.GRASS) m[y][x] = T.FLOWER; // 花畑
+    }
+    // ゲディミナス塔（大聖堂の東の丘 16,5）
+    m[5][16] = T.GEDIMINAS;
+    m[6][16] = T.WALL;
+    m[5][15] = T.TREE; m[6][15] = T.TREE; m[5][17] = T.TREE; m[6][17] = T.TREE;
+
+    // 橋（川を渡る、北エリアと中央広場をつなぐ）
+    m[3][12] = T.BRIDGE; m[4][12] = T.BRIDGE;
+
+    // 北の道（橋から大聖堂前まで）
+    for (let y = 5; y <= 9; y++) m[y][12] = (m[y][12] === T.GRASS || m[y][12] === T.FLOWER) ? T.ROAD : m[y][12];
+
+    // 中央広場（旧市庁舎広場 y=10-14, x=8-22）
+    for (let y = 10; y <= 14; y++) {
+      for (let x = 8; x <= 22; x++) {
+        if (m[y][x] === T.GRASS) m[y][x] = T.ROAD;
+      }
+    }
+    // 旧市庁舎（中央 12,11..14,12）
+    m[11][12] = T.WALL; m[11][13] = T.WALL; m[11][14] = T.WALL;
+    m[12][12] = T.WALL; m[12][13] = T.DOOR; m[12][14] = T.WALL;
+
+    // マンタスの店（中央広場の北東 17,11..18,12）
+    m[11][17] = T.WALL; m[11][18] = T.WALL;
+    m[12][17] = T.DOOR; m[12][18] = T.WALL;
+
+    // 雑貨屋（中央広場の北西 8,11..9,12）
+    m[11][8] = T.WALL; m[11][9] = T.WALL;
+    m[12][8] = T.DOOR; m[12][9] = T.WALL;
+
+    // 西側エリア（AKクワイア集会所＋宿屋 y=15-19）
+    // 集会所（5,16..7,18）
+    for (let y = 16; y <= 18; y++) for (let x = 5; x <= 7; x++) m[y][x] = T.WALL;
+    m[17][6] = T.AKHALL;
+
+    // 宿屋（みほさんの宿、9,16..11,18）
+    for (let y = 16; y <= 18; y++) for (let x = 9; x <= 11; x++) m[y][x] = T.WALL;
+    m[17][10] = T.INN;
+
+    // 東側エリア（聖アンナ教会 22,16..24,18）
+    for (let y = 16; y <= 18; y++) for (let x = 22; x <= 24; x++) m[y][x] = T.ANNE;
+    m[19][23] = T.DOOR; // 教会前
+
+    // 南北の中央道（広場から夜明けの門へ）
+    for (let y = 15; y <= 28; y++) m[y][14] = T.ROAD;
+
+    // 南北道の左右に旧市街の家
+    m[20][10] = T.WALL; m[20][11] = T.WALL; m[21][10] = T.DOOR;
+    m[20][17] = T.WALL; m[20][18] = T.WALL; m[21][18] = T.DOOR;
+    m[24][10] = T.WALL; m[24][11] = T.WALL; m[25][10] = T.DOOR;
+    m[24][17] = T.WALL; m[24][18] = T.WALL; m[25][18] = T.DOOR;
+
+    // 夜明けの門（南 14,28）
+    m[28][14] = T.GATES;
+    m[27][14] = T.ROAD;
+    m[29][14] = T.ROAD;
+
+    // 横道（東西方向、中央広場から聖アンナまで）
+    for (let x = 7; x <= 25; x++) {
+      if (m[19][x] === T.GRASS || m[19][x] === T.ROAD) m[19][x] = T.ROAD;
+    }
+    // 集会所と宿屋への入口前道
+    m[19][6] = T.ROAD; m[19][10] = T.ROAD;
+
+    // 残った草地に座標シードでエンカウント草むら・木をまばらに散らす
+    for (let y = 1; y < MAP_ROWS - 1; y++) {
+      for (let x = 1; x < MAP_COLS - 1; x++) {
+        if (m[y][x] !== T.GRASS) continue;
+        const r = ((x * 73856093) ^ (y * 19349663)) >>> 0;
+        const v = r % 100;
+        if (v < 10) m[y][x] = T.TREE;
+        else if (v < 35) m[y][x] = T.ENC;
       }
     }
 
@@ -79,44 +169,99 @@
   })();
 
   // ============================================================
-  // NPC配置（旧16×16座標に+8で32×32座標に変換）
-  // 将来 js/data/npcs_vilnius.js に分離
+  // NPC配置（キーパーソン込み）
   // ============================================================
   const NPCS = [
-    { x: 10, y: 11, name: 'おばさん',          kind: 'greeter',  hint: 'labas' },
-    { x: 14, y: 11, name: 'パン屋',            kind: 'baker',    hint: 'aciu'  },
-    { x: 17, y: 11, name: '吟遊詩人',          kind: 'bard',     hint: 'kaip'  },
-    { x: 12, y: 14, name: '学生',              kind: 'student',  hint: 'labas' },
-    { x: 18, y: 14, name: 'おじいさん',        kind: 'elder',    hint: 'aciu'  },
-    { x: 12, y: 18, name: '子ども',            kind: 'child',    hint: 'kaip'  },
-    { x: 17, y: 18, name: 'AKクワイア仲間',    kind: 'akmate',   hint: null    },
-    { x: 20, y: 10, name: '塔の番人',          kind: 'guardian', hint: null    },
+    // AKクワイア仲間
+    { x: 7, y: 17, name: 'あきちゃん',  kind: 'akihiro', look: 'm1', hint: null },
+    { x: 11, y: 17, name: 'みほさん',    kind: 'miho',    look: 'f5', hint: null },
+    // リトアニア人キーパーソン
+    { x: 17, y: 13, name: 'マンタス',    kind: 'mantas',  look: 'm4', hint: 'aciu'  },
+    { x: 22, y: 13, name: 'イエヴァ',    kind: 'ieva',    look: 'f1', hint: 'kaip'  },
+    // ヴィリニュス市民
+    { x: 12, y: 9,  name: '司祭',        kind: 'priest',  look: 'm2', hint: 'labas' },
+    { x: 8,  y: 13, name: '雑貨屋',      kind: 'shop',    look: 'f3', hint: 'aciu'  },
+    { x: 18, y: 19, name: '吟遊詩人',    kind: 'bard',    look: 'm3', hint: 'kaip'  },
+    { x: 14, y: 21, name: '子ども',      kind: 'child',   look: 'f7', hint: 'labas' },
+    { x: 23, y: 19, name: 'おばあさん',  kind: 'elder',   look: 'f6', hint: 'aciu'  },
+    // 塔の番人
+    { x: 16, y: 7,  name: '塔の番人',    kind: 'guardian', look: 'm2', hint: null },
   ];
 
   // ============================================================
   // ゲーム状態
   // ============================================================
-  const state = {
-    scene: 'title', // title | field | dialog | battle | win | lose
-    px: 15, py: 16, pdir: 'down', // 旧(7,8)+8=(15,16)
-    hp: 20, maxHp: 20,
-    mp: 10, maxMp: 10,
-    lv: 1, xp: 0, gold: 0,
-    nextXp: 8,
-    pieces: 0, // 0..3
-    flags: { baker: false, child: false, guardian: false },
-    dialog: [],
-    dialogIdx: 0,
-    choices: null,
-    onChoice: null,
-    afterDialog: null,
-    enemy: null,
-    battleLog: '',
-    songCounter: 0,
-  };
+  function initialState() {
+    return {
+      scene: 'title', // title | newgame | field | dialog | battle | win | lose
+      titleStep: 'menu',  // menu | name1 | look1 | name2 | look2 | name3 | look3 | confirm
+      tmp: { names: ['', '', ''], looks: ['m1', 'f5', 'm4'], whoIdx: 0, kanaIdx: 0 },
+      // パーティ（共通レベル、それぞれHP/MPあり）
+      party: [
+        { name: '主人公', look: 'm1', hp: 20, maxHp: 20, mp: 10, maxMp: 10, alive: true },
+        { name: 'あき',   look: 'm1', hp: 18, maxHp: 18, mp: 8,  maxMp: 8,  alive: true },
+        { name: 'みほ',   look: 'f5', hp: 16, maxHp: 16, mp: 12, maxMp: 12, alive: true },
+      ],
+      px: 14, py: 19, pdir: 'down',
+      lv: 1, xp: 0, gold: 30, nextXp: 8,
+      pieces: 0,
+      flags: { guardian: false, child: false, shop: false, bard: false, mantas: false, ieva: false },
+      dialog: [], dialogIdx: 0,
+      choices: null, onChoice: null, afterDialog: null,
+      enemy: null, battleLog: '', battleStep: 'menu', battleSel: 0,
+      buff: 0, // エホーマイ残ターン
+      songCounter: 0,
+    };
+  }
+  let state = initialState();
 
   // ============================================================
-  // カメラ（プレイヤー追従、マップ端でクランプ）
+  // セーブ／ロード
+  // ============================================================
+  function saveGame() {
+    try {
+      const snap = {
+        version: SAVE_VERSION,
+        savedAt: Date.now(),
+        party: state.party,
+        px: state.px, py: state.py, pdir: state.pdir,
+        lv: state.lv, xp: state.xp, gold: state.gold, nextXp: state.nextXp,
+        pieces: state.pieces, flags: state.flags,
+      };
+      localStorage.setItem(SAVE_KEY, JSON.stringify(snap));
+      flashStatus('💾 セーブしました');
+    } catch (e) {
+      flashStatus('セーブ失敗: ' + e.message);
+    }
+  }
+  function loadGame() {
+    try {
+      const s = localStorage.getItem(SAVE_KEY);
+      if (!s) return false;
+      const d = JSON.parse(s);
+      if (!d || d.version !== SAVE_VERSION) return false;
+      state.party = d.party;
+      state.px = d.px; state.py = d.py; state.pdir = d.pdir || 'down';
+      state.lv = d.lv; state.xp = d.xp; state.gold = d.gold; state.nextXp = d.nextXp;
+      state.pieces = d.pieces; state.flags = d.flags || {};
+      state.scene = 'field';
+      return true;
+    } catch (e) { return false; }
+  }
+  function hasSave() { return !!localStorage.getItem(SAVE_KEY); }
+
+  let _flashTimer = null;
+  function flashStatus(msg) {
+    const s = document.getElementById('status');
+    if (!s) return;
+    s.dataset.flash = msg;
+    if (_flashTimer) clearTimeout(_flashTimer);
+    _flashTimer = setTimeout(() => { delete s.dataset.flash; updateStatus(); }, 1500);
+    updateStatus();
+  }
+
+  // ============================================================
+  // カメラ
   // ============================================================
   function getCamera() {
     let cx = state.px - Math.floor(VIEW_COLS / 2);
@@ -127,38 +272,43 @@
   }
 
   // ============================================================
-  // 描画ヘルパー（将来 js/systems/render.js に分離）
-  // 32px タイル前提のドット絵
+  // 描画ヘルパー
   // ============================================================
   function rect(x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); }
   function clear(c) { rect(0, 0, CANVAS_W, CANVAS_H, c || '#000'); }
 
   function drawTile(t, sx, sy) {
-    if (t === 0 || t === 9) {
-      // 草地 / エンカウント草むら
-      rect(sx, sy, TILE, TILE, t === 9 ? '#5a8a3a' : '#6ea64a');
-      ctx.fillStyle = t === 9 ? '#3e6a26' : '#4d8a36';
+    if (t === T.GRASS || t === T.ENC || t === T.FLOWER) {
+      rect(sx, sy, TILE, TILE, t === T.ENC ? '#5a8a3a' : '#6ea64a');
+      ctx.fillStyle = t === T.ENC ? '#3e6a26' : '#4d8a36';
       for (let i = 0; i < 12; i++) {
         const dx = (i * 7 + sy) % TILE;
         const dy = (i * 11 + sx) % TILE;
         ctx.fillRect(sx + dx, sy + dy, 3, 3);
       }
-      if (t === 9) {
+      if (t === T.ENC) {
         ctx.fillStyle = '#2e5a1a';
         ctx.fillRect(sx + 6,  sy + 18, 2, 8);
         ctx.fillRect(sx + 16, sy + 14, 2, 10);
         ctx.fillRect(sx + 24, sy + 20, 2, 8);
       }
-    } else if (t === 1) {
-      // 道（石畳）
+      if (t === T.FLOWER) {
+        const cols = ['#dac030','#c84080','#ffffff','#aa6aee'];
+        for (let i = 0; i < 5; i++) {
+          ctx.fillStyle = cols[i % 4];
+          const dx = ((sx + sy + i*9) * 13) % (TILE - 4);
+          const dy = ((sx * 3 + sy * 5 + i*7) * 11) % (TILE - 4);
+          ctx.fillRect(sx + dx, sy + dy, 3, 3);
+        }
+      }
+    } else if (t === T.ROAD) {
       rect(sx, sy, TILE, TILE, '#c8a878');
       ctx.fillStyle = '#a88858';
       ctx.fillRect(sx + 4,  sy + 6,  3, 3);
       ctx.fillRect(sx + 18, sy + 22, 3, 3);
       ctx.fillRect(sx + 22, sy + 8,  2, 2);
       ctx.fillRect(sx + 8,  sy + 18, 2, 2);
-    } else if (t === 2) {
-      // 建物壁（レンガ）
+    } else if (t === T.WALL) {
       rect(sx, sy, TILE, TILE, '#8a4a2a');
       ctx.fillStyle = '#6a3a1a';
       ctx.fillRect(sx, sy + 14, TILE, 1);
@@ -166,137 +316,152 @@
       ctx.fillStyle = '#aa6a3a';
       ctx.fillRect(sx + 2,  sy + 2,  5, 4);
       ctx.fillRect(sx + 18, sy + 18, 5, 4);
-      ctx.fillStyle = '#dac030'; // 小窓
+      ctx.fillStyle = '#dac030';
       ctx.fillRect(sx + 22, sy + 4,  4, 4);
       ctx.fillRect(sx + 4,  sy + 22, 4, 4);
-    } else if (t === 3) {
-      // 木
+    } else if (t === T.TREE) {
       rect(sx, sy, TILE, TILE, '#6ea64a');
-      rect(sx + 13, sy + 22, 6, 10, '#5a3a1a'); // 幹
+      rect(sx + 13, sy + 22, 6, 10, '#5a3a1a');
       ctx.fillStyle = '#1e6a2a';
       ctx.beginPath(); ctx.arc(sx + 16, sy + 14, 12, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#2e8a3a';
       ctx.beginPath(); ctx.arc(sx + 16, sy + 11, 7, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#4eaa4a';
       ctx.beginPath(); ctx.arc(sx + 12, sy + 9, 3, 0, Math.PI * 2); ctx.fill();
-    } else if (t === 4) {
-      // 水
+    } else if (t === T.WATER) {
       rect(sx, sy, TILE, TILE, '#3a6abe');
       ctx.fillStyle = '#5a8ade';
       ctx.fillRect(sx + 4,  sy + 8,  10, 2);
       ctx.fillRect(sx + 16, sy + 18, 10, 2);
       ctx.fillRect(sx + 8,  sy + 24, 8,  1);
-    } else if (t === 5) {
-      // 建物入口
+    } else if (t === T.DOOR) {
       rect(sx, sy, TILE, TILE, '#8a4a2a');
-      rect(sx + 10, sy + 8, 12, 24, '#3a2a1a'); // ドア
-      ctx.fillStyle = '#dac030'; // ドアノブ
+      rect(sx + 10, sy + 8, 12, 24, '#3a2a1a');
+      ctx.fillStyle = '#dac030';
       ctx.fillRect(sx + 19, sy + 20, 2, 3);
-      ctx.fillStyle = '#aa6a3a'; // 看板
+      ctx.fillStyle = '#aa6a3a';
       ctx.fillRect(sx + 8, sy + 4, 16, 3);
-    } else if (t === 6) {
-      // ゲディミナス塔
+    } else if (t === T.GEDIMINAS) {
       rect(sx, sy, TILE, TILE, '#6ea64a');
-      rect(sx + 9, sy + 4, 14, 28, '#b06030'); // 本体
-      rect(sx + 7, sy + 2, 18, 5,  '#8a4020'); // 屋根
+      rect(sx + 9, sy + 4, 14, 28, '#b06030');
+      rect(sx + 7, sy + 2, 18, 5,  '#8a4020');
       ctx.fillStyle = '#3a2a1a';
       ctx.fillRect(sx + 14, sy + 16, 4, 6);
       ctx.fillRect(sx + 14, sy + 24, 4, 5);
-      // 三色旗（黄・緑・赤）
       ctx.fillStyle = '#dac030'; ctx.fillRect(sx + 15, sy,     2, 3);
       ctx.fillStyle = '#dac030'; ctx.fillRect(sx + 17, sy + 1, 6, 2);
       ctx.fillStyle = '#3aae5a'; ctx.fillRect(sx + 17, sy + 3, 6, 2);
       ctx.fillStyle = '#c83030'; ctx.fillRect(sx + 17, sy + 5, 6, 2);
-    } else if (t === 7) {
-      // 夜明けの門
+    } else if (t === T.GATES) {
       rect(sx, sy, TILE, TILE, '#c8a878');
       rect(sx + 4, sy + 6, 24, 26, '#dab070');
-      rect(sx + 11, sy + 14, 10, 18, '#3a2a1a'); // アーチ下
+      rect(sx + 11, sy + 14, 10, 18, '#3a2a1a');
       ctx.fillStyle = '#3a2a1a';
       ctx.beginPath();
       ctx.arc(sx + 16, sy + 14, 5, Math.PI, 0);
       ctx.fill();
-      // 礼拝堂の金（黒いマドンナのイコン）
       ctx.fillStyle = '#dac030';
       ctx.fillRect(sx + 14, sy + 4, 4, 5);
       ctx.fillStyle = '#3a2a1a';
       ctx.fillRect(sx + 15, sy + 6, 2, 2);
-    } else if (t === 8) {
-      // 聖アンナ教会（ゴシック・三本尖塔）
+    } else if (t === T.ANNE) {
       rect(sx, sy, TILE, TILE, '#c8a878');
-      rect(sx + 6, sy + 14, 20, 18, '#a04030'); // 本体
+      rect(sx + 6, sy + 14, 20, 18, '#a04030');
       ctx.fillStyle = '#702030';
-      // 中央尖塔
       ctx.beginPath();
-      ctx.moveTo(sx + 13, sy + 14);
-      ctx.lineTo(sx + 16, sy);
-      ctx.lineTo(sx + 19, sy + 14);
-      ctx.fill();
-      // 左尖塔
+      ctx.moveTo(sx + 13, sy + 14); ctx.lineTo(sx + 16, sy);     ctx.lineTo(sx + 19, sy + 14); ctx.fill();
       ctx.beginPath();
-      ctx.moveTo(sx + 6,  sy + 14);
-      ctx.lineTo(sx + 9,  sy + 4);
-      ctx.lineTo(sx + 12, sy + 14);
-      ctx.fill();
-      // 右尖塔
+      ctx.moveTo(sx + 6,  sy + 14); ctx.lineTo(sx + 9,  sy + 4); ctx.lineTo(sx + 12, sy + 14); ctx.fill();
       ctx.beginPath();
-      ctx.moveTo(sx + 20, sy + 14);
-      ctx.lineTo(sx + 23, sy + 4);
-      ctx.lineTo(sx + 26, sy + 14);
-      ctx.fill();
-      // 黄金のクロス
+      ctx.moveTo(sx + 20, sy + 14); ctx.lineTo(sx + 23, sy + 4); ctx.lineTo(sx + 26, sy + 14); ctx.fill();
       ctx.fillStyle = '#dac030';
       ctx.fillRect(sx + 15, sy - 1, 2, 4);
       ctx.fillRect(sx + 14, sy + 1, 4, 1);
-      // 入口
       ctx.fillStyle = '#3a2a1a';
       ctx.fillRect(sx + 14, sy + 22, 4, 10);
+    } else if (t === T.CATHEDRAL) {
+      // 大聖堂（白い列柱とドーム） — 3x3で配置されるので個々のタイルは部分描画
+      rect(sx, sy, TILE, TILE, '#e8e0d0');
+      ctx.fillStyle = '#b0a890';
+      ctx.fillRect(sx, sy + TILE - 4, TILE, 4);
+      ctx.fillStyle = '#c8c0a8';
+      // 列柱風
+      for (let i = 0; i < 3; i++) {
+        ctx.fillRect(sx + 4 + i * 9, sy + 6, 4, TILE - 12);
+      }
+      ctx.fillStyle = '#6a3a1a';
+      ctx.fillRect(sx, sy, TILE, 3);
+    } else if (t === T.INN) {
+      // 宿屋入口（赤屋根＋月マーク）
+      rect(sx, sy, TILE, TILE, '#aa3030');
+      rect(sx + 4, sy + 12, 24, 20, '#8a4a2a');
+      rect(sx + 12, sy + 16, 8, 16, '#3a2a1a');
+      ctx.fillStyle = '#dac030';
+      ctx.beginPath(); ctx.arc(sx + 16, sy + 6, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#aa3030';
+      ctx.beginPath(); ctx.arc(sx + 18, sy + 6, 4, 0, Math.PI * 2); ctx.fill();
+    } else if (t === T.AKHALL) {
+      // AKクワイア集会所（音符マーク）
+      rect(sx, sy, TILE, TILE, '#3a4abe');
+      rect(sx + 4, sy + 12, 24, 20, '#5a3a1a');
+      rect(sx + 12, sy + 16, 8, 16, '#3a2a1a');
+      ctx.fillStyle = '#dac030';
+      ctx.fillRect(sx + 8, sy + 4, 2, 6);
+      ctx.beginPath(); ctx.arc(sx + 8, sy + 10, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillRect(sx + 22, sy + 4, 2, 6);
+      ctx.beginPath(); ctx.arc(sx + 22, sy + 10, 2, 0, Math.PI * 2); ctx.fill();
+    } else if (t === T.BRIDGE) {
+      rect(sx, sy, TILE, TILE, '#3a6abe');
+      rect(sx + 2, sy + 8, TILE - 4, TILE - 16, '#a88858');
+      ctx.fillStyle = '#6a3a1a';
+      for (let i = 0; i < 4; i++) ctx.fillRect(sx + 4 + i * 7, sy + 10, 2, TILE - 20);
     }
   }
 
-  function drawHero(sx, sy, dir) {
-    rect(sx + 10, sy + 16, 12, 12, '#3a4abe'); // 胴体
-    rect(sx + 10, sy + 26, 5, 5, '#3a2a1a');   // 左足
-    rect(sx + 17, sy + 26, 5, 5, '#3a2a1a');   // 右足
-    rect(sx + 11, sy + 6, 10, 11, '#f0c89a');  // 顔
-    rect(sx + 10, sy + 4, 12, 5, '#5a3a1a');   // 髪
+  // 32px キャラ描画（lookに応じて差し替え）
+  function drawChar(sx, sy, dir, look) {
+    const L = lookById(look);
+    // 影
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.fillRect(sx + 8, sy + 28, 16, 3);
+    // 胴体
+    rect(sx + 10, sy + 16, 12, 12, L.cloth);
+    // 足
+    rect(sx + 10, sy + 26, 5, 5, '#3a2a1a');
+    rect(sx + 17, sy + 26, 5, 5, '#3a2a1a');
+    // 顔
+    rect(sx + 11, sy + 6, 10, 11, L.skin);
+    // 髪
+    if (L.longHair) {
+      rect(sx + 9, sy + 4, 14, 16, L.hair);
+      rect(sx + 11, sy + 8, 10, 9, L.skin); // 顔面再描画
+    } else if (L.ponytail) {
+      rect(sx + 10, sy + 4, 12, 5, L.hair);
+      rect(sx + 22, sy + 5, 4, 12, L.hair);
+    } else {
+      rect(sx + 10, sy + 4, 12, 5, L.hair);
+    }
+    // 目
     ctx.fillStyle = '#000';
     if (dir === 'down')      { ctx.fillRect(sx + 13, sy + 11, 2, 3); ctx.fillRect(sx + 18, sy + 11, 2, 3); }
     else if (dir === 'up')   { ctx.fillRect(sx + 13, sy + 5,  2, 1); ctx.fillRect(sx + 18, sy + 5,  2, 1); }
     else if (dir === 'left') { ctx.fillRect(sx + 11, sy + 11, 2, 3); }
     else                     { ctx.fillRect(sx + 19, sy + 11, 2, 3); }
+    // 眼鏡
+    if (L.glasses && (dir === 'down' || dir === 'up')) {
+      ctx.strokeStyle = '#000'; ctx.lineWidth = 1;
+      ctx.strokeRect(sx + 12, sy + 10, 4, 4);
+      ctx.strokeRect(sx + 17, sy + 10, 4, 4);
+      ctx.fillRect(sx + 16, sy + 12, 1, 1);
+    }
     // 腕
-    rect(sx + 6,  sy + 17, 4, 7, '#f0c89a');
-    rect(sx + 22, sy + 17, 4, 7, '#f0c89a');
-    // 楽譜
+    rect(sx + 6,  sy + 17, 4, 7, L.skin);
+    rect(sx + 22, sy + 17, 4, 7, L.skin);
+    // 楽譜（主人公だけ持つわけではないが小道具として）
     rect(sx + 12, sy + 19, 8, 5, '#fff');
     ctx.fillStyle = '#000';
     ctx.fillRect(sx + 14, sy + 21, 1, 1);
     ctx.fillRect(sx + 17, sy + 21, 1, 1);
-  }
-
-  function drawNPC(sx, sy, kind) {
-    const palette = {
-      greeter:  { col: '#c83080', hair: '#dac030' },
-      baker:    { col: '#dac030', hair: '#8a4020' },
-      bard:     { col: '#3aae6a', hair: '#3a2a1a' },
-      student:  { col: '#3a8abe', hair: '#5a3a1a' },
-      elder:    { col: '#888888', hair: '#ffffff' },
-      child:    { col: '#dab070', hair: '#5a3a1a' },
-      akmate:   { col: '#9a3aae', hair: '#3a2a1a' },
-      guardian: { col: '#3a3a3a', hair: '#aa3030' },
-    }[kind] || { col: '#c83030', hair: '#3a2a1a' };
-
-    rect(sx + 10, sy + 16, 12, 12, palette.col);
-    rect(sx + 10, sy + 26, 5, 5, '#3a2a1a');
-    rect(sx + 17, sy + 26, 5, 5, '#3a2a1a');
-    rect(sx + 11, sy + 6, 10, 11, '#f0c89a');
-    rect(sx + 10, sy + 4, 12, 5, palette.hair);
-    ctx.fillStyle = '#000';
-    ctx.fillRect(sx + 13, sy + 11, 2, 3);
-    ctx.fillRect(sx + 18, sy + 11, 2, 3);
-    rect(sx + 6,  sy + 17, 4, 7, '#f0c89a');
-    rect(sx + 22, sy + 17, 4, 7, '#f0c89a');
   }
 
   function drawEnemy(sx, sy, type) {
@@ -327,6 +492,262 @@
     }
   }
 
+  // ============================================================
+  // タイトル／新規作成画面
+  // ============================================================
+  const KANA = [
+    'あいうえお', 'かきくけこ', 'さしすせそ', 'たちつてと', 'なにぬねの',
+    'はひふへほ', 'まみむめも', 'やゆよわん', 'らりるれろ', 'がぎぐげご',
+    'ざじずぜぞ', 'だぢづでど', 'ばびぶべぼ', 'ぱぴぷぺぽ', '・ー'
+  ];
+
+  function renderTitle() {
+    clear('#1a1a2a');
+    // 背景の星
+    ctx.fillStyle = '#fff';
+    for (let i = 0; i < 30; i++) {
+      const x = (i * 79) % CANVAS_W;
+      const y = (i * 53) % 200;
+      ctx.fillRect(x, y, 1, 1);
+    }
+    // ロゴ
+    ctx.fillStyle = '#dac030';
+    ctx.font = 'bold 26px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('リトアニア音楽紀行', CANVAS_W / 2, 90);
+    ctx.fillStyle = '#fff';
+    ctx.font = '13px sans-serif';
+    ctx.fillText('〜失われた歌詞のピース〜', CANVAS_W / 2, 115);
+    // 三色帯
+    ctx.fillStyle = '#dac030'; ctx.fillRect(40, 130, CANVAS_W - 80, 4);
+    ctx.fillStyle = '#3aae5a'; ctx.fillRect(40, 136, CANVAS_W - 80, 4);
+    ctx.fillStyle = '#c83030'; ctx.fillRect(40, 142, CANVAS_W - 80, 4);
+    ctx.textAlign = 'left';
+  }
+
+  function showTitleMenu() {
+    state.scene = 'title';
+    state.titleStep = 'menu';
+    renderTitle();
+    const d = document.getElementById('dialog');
+    let html = '<div style="font-size:13px;margin-bottom:8px;text-align:center;">メニュー</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+    html += '<button data-act="new" class="title-btn" style="padding:10px;background:#222;border:1px solid #555;border-radius:6px;color:#fff;cursor:pointer;">▶ はじめから</button>';
+    if (hasSave()) {
+      html += '<button data-act="cont" class="title-btn" style="padding:10px;background:#222;border:1px solid #dac030;border-radius:6px;color:#dac030;cursor:pointer;">▶ つづきから</button>';
+    } else {
+      html += '<button disabled style="padding:10px;background:#111;border:1px solid #333;border-radius:6px;color:#555;">  つづきから（セーブなし）</button>';
+    }
+    html += '</div>';
+    d.innerHTML = html;
+    d.querySelectorAll('[data-act]').forEach(b => {
+      b.addEventListener('click', () => {
+        if (b.dataset.act === 'cont') {
+          if (loadGame()) { renderAndUpdate(); openingResume(); }
+        } else {
+          startNewGame();
+        }
+      });
+    });
+  }
+
+  function startNewGame() {
+    state = initialState();
+    state.scene = 'newgame';
+    state.titleStep = 'name1';
+    state.tmp = { names: ['', '', ''], looks: ['m1', 'f5', 'm4'], whoIdx: 0 };
+    renderNewGameStep();
+  }
+
+  function renderNewGameStep() {
+    clear('#1a1a2a');
+    ctx.fillStyle = '#dac030';
+    ctx.font = 'bold 18px sans-serif';
+    ctx.textAlign = 'center';
+    const titles = ['主人公', 'ふたり目', 'みっつ目'];
+    const idx = state.tmp.whoIdx;
+    const stepLabel = state.titleStep.startsWith('name') ? 'なまえを入力' : '見た目をえらぶ';
+    ctx.fillText(titles[idx] + 'の' + stepLabel, CANVAS_W / 2, 50);
+    ctx.font = '13px sans-serif';
+    ctx.fillStyle = '#fff';
+    ctx.fillText('（' + (idx + 1) + '/3）', CANVAS_W / 2, 75);
+
+    if (state.titleStep.startsWith('look')) {
+      // 見た目プレビュー（中央に大きく）
+      const L = lookById(state.tmp.looks[idx]);
+      ctx.font = '12px sans-serif';
+      ctx.fillStyle = '#aaa';
+      ctx.fillText(L.name, CANVAS_W / 2, 100);
+      // キャラ拡大表示（2x）
+      const cx = CANVAS_W / 2 - TILE;
+      const cy = 130;
+      ctx.save();
+      ctx.imageSmoothingEnabled = false;
+      // テンポラリ・キャンバスに描いて2倍拡大
+      const tmp = document.createElement('canvas');
+      tmp.width = TILE; tmp.height = TILE;
+      const tctx = tmp.getContext('2d');
+      const orig = ctx;
+      // 一時的にctxを切り替え
+      window.__tmpctx = ctx;
+      // drawCharは外側のctxを使うので、手書きで描く
+      ctx.restore();
+      drawCharOnCtx(tctx, 0, 0, 'down', state.tmp.looks[idx]);
+      ctx.drawImage(tmp, cx, cy, TILE * 2, TILE * 2);
+    }
+    if (state.titleStep.startsWith('name')) {
+      ctx.font = 'bold 22px sans-serif';
+      ctx.fillStyle = '#fff';
+      ctx.fillText(state.tmp.names[idx] || '＿＿＿', CANVAS_W / 2, 150);
+    }
+    ctx.textAlign = 'left';
+    showNewGameUI();
+  }
+
+  function drawCharOnCtx(c, sx, sy, dir, look) {
+    // drawCharの簡易版（ctx指定可）
+    const L = lookById(look);
+    c.fillStyle = 'rgba(0,0,0,0.25)'; c.fillRect(sx + 8, sy + 28, 16, 3);
+    c.fillStyle = L.cloth; c.fillRect(sx + 10, sy + 16, 12, 12);
+    c.fillStyle = '#3a2a1a'; c.fillRect(sx + 10, sy + 26, 5, 5); c.fillRect(sx + 17, sy + 26, 5, 5);
+    c.fillStyle = L.skin; c.fillRect(sx + 11, sy + 6, 10, 11);
+    if (L.longHair) {
+      c.fillStyle = L.hair; c.fillRect(sx + 9, sy + 4, 14, 16);
+      c.fillStyle = L.skin; c.fillRect(sx + 11, sy + 8, 10, 9);
+    } else if (L.ponytail) {
+      c.fillStyle = L.hair; c.fillRect(sx + 10, sy + 4, 12, 5); c.fillRect(sx + 22, sy + 5, 4, 12);
+    } else {
+      c.fillStyle = L.hair; c.fillRect(sx + 10, sy + 4, 12, 5);
+    }
+    c.fillStyle = '#000';
+    c.fillRect(sx + 13, sy + 11, 2, 3); c.fillRect(sx + 18, sy + 11, 2, 3);
+    if (L.glasses) {
+      c.strokeStyle = '#000'; c.lineWidth = 1;
+      c.strokeRect(sx + 12, sy + 10, 4, 4); c.strokeRect(sx + 17, sy + 10, 4, 4);
+    }
+    c.fillStyle = L.skin; c.fillRect(sx + 6, sy + 17, 4, 7); c.fillRect(sx + 22, sy + 17, 4, 7);
+  }
+
+  function showNewGameUI() {
+    const d = document.getElementById('dialog');
+    const idx = state.tmp.whoIdx;
+    let html = '';
+
+    if (state.titleStep.startsWith('name')) {
+      html += '<div style="font-size:12px;margin-bottom:6px;color:#aaa;">名前（最大6文字）</div>';
+      html += `<div style="font-size:14px;margin-bottom:8px;background:#222;padding:6px 10px;border-radius:4px;min-height:22px;">${state.tmp.names[idx] || ''}<span style="color:#888;">_</span></div>`;
+      html += '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:3px;font-size:13px;">';
+      KANA.forEach(row => {
+        for (const ch of row) {
+          html += `<button data-kana="${ch}" style="padding:6px 0;background:#222;border:1px solid #555;border-radius:4px;color:#fff;cursor:pointer;">${ch}</button>`;
+        }
+      });
+      html += '</div>';
+      html += '<div style="display:flex;gap:6px;margin-top:6px;">';
+      html += '<button data-act="bs" style="flex:1;padding:8px;background:#aa3030;border:0;border-radius:4px;color:#fff;cursor:pointer;">けす</button>';
+      html += '<button data-act="ok" style="flex:2;padding:8px;background:#3aae5a;border:0;border-radius:4px;color:#fff;cursor:pointer;">けってい</button>';
+      html += '</div>';
+    } else if (state.titleStep.startsWith('look')) {
+      html += '<div style="font-size:12px;margin-bottom:6px;color:#aaa;">12種類から見た目をえらぶ</div>';
+      html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;">';
+      LOOKS.forEach(L => {
+        const sel = L.id === state.tmp.looks[idx];
+        html += `<button data-look="${L.id}" style="padding:4px;background:${sel ? '#dac030' : '#222'};color:${sel ? '#000' : '#fff'};border:1px solid #555;border-radius:4px;font-size:11px;cursor:pointer;">${L.id}<br>${L.sex === 'm' ? '♂' : '♀'}</button>`;
+      });
+      html += '</div>';
+      html += `<div style="margin-top:6px;font-size:11px;color:#aaa;">選択中: ${lookById(state.tmp.looks[idx]).name}</div>`;
+      html += '<button data-act="ok" style="margin-top:8px;width:100%;padding:8px;background:#3aae5a;border:0;border-radius:4px;color:#fff;cursor:pointer;">この見た目で決定</button>';
+    } else if (state.titleStep === 'confirm') {
+      html += '<div style="font-size:13px;margin-bottom:8px;">この3人で旅立ちますか？</div>';
+      for (let i = 0; i < 3; i++) {
+        html += `<div style="margin:4px 0;font-size:13px;">${['主人公','仲間1','仲間2'][i]}: <b>${state.tmp.names[i]}</b>（${lookById(state.tmp.looks[i]).name}）</div>`;
+      }
+      html += '<div style="display:flex;gap:6px;margin-top:8px;">';
+      html += '<button data-act="back" style="flex:1;padding:8px;background:#555;border:0;border-radius:4px;color:#fff;cursor:pointer;">最初から</button>';
+      html += '<button data-act="go" style="flex:2;padding:8px;background:#dac030;border:0;border-radius:4px;color:#000;font-weight:bold;cursor:pointer;">旅立つ！</button>';
+      html += '</div>';
+    }
+
+    d.innerHTML = html;
+    bindNewGameUI();
+  }
+
+  function bindNewGameUI() {
+    const d = document.getElementById('dialog');
+    const idx = state.tmp.whoIdx;
+
+    d.querySelectorAll('[data-kana]').forEach(b => {
+      b.addEventListener('click', () => {
+        if (state.tmp.names[idx].length >= 6) return;
+        state.tmp.names[idx] += b.dataset.kana;
+        renderNewGameStep();
+      });
+    });
+    d.querySelectorAll('[data-look]').forEach(b => {
+      b.addEventListener('click', () => {
+        state.tmp.looks[idx] = b.dataset.look;
+        renderNewGameStep();
+      });
+    });
+    d.querySelectorAll('[data-act]').forEach(b => {
+      b.addEventListener('click', () => {
+        const act = b.dataset.act;
+        if (act === 'bs') {
+          state.tmp.names[idx] = state.tmp.names[idx].slice(0, -1);
+          renderNewGameStep();
+        } else if (act === 'ok') {
+          if (state.titleStep.startsWith('name')) {
+            if (!state.tmp.names[idx]) { flashStatus('名前を入力してください'); return; }
+            state.titleStep = 'look' + (idx + 1);
+            renderNewGameStep();
+          } else {
+            // look確定 → 次の人 or 確認画面
+            if (idx < 2) {
+              state.tmp.whoIdx++;
+              state.titleStep = 'name' + (state.tmp.whoIdx + 1);
+            } else {
+              state.titleStep = 'confirm';
+            }
+            renderNewGameStep();
+          }
+        } else if (act === 'back') {
+          startNewGame();
+        } else if (act === 'go') {
+          finalizeNewGame();
+        }
+      });
+    });
+  }
+
+  function finalizeNewGame() {
+    state.party[0].name = state.tmp.names[0]; state.party[0].look = state.tmp.looks[0];
+    state.party[1].name = state.tmp.names[1]; state.party[1].look = state.tmp.looks[1];
+    state.party[2].name = state.tmp.names[2]; state.party[2].look = state.tmp.looks[2];
+    // あきちゃん・みほさんNPCの見た目を仲間2人と同期
+    NPCS.find(n => n.kind === 'akihiro').look = state.party[1].look;
+    NPCS.find(n => n.kind === 'akihiro').name = state.party[1].name + '（あき役）';
+    NPCS.find(n => n.kind === 'miho').look    = state.party[2].look;
+    NPCS.find(n => n.kind === 'miho').name    = state.party[2].name + '（みほ役）';
+    state.scene = 'field';
+    saveGame();
+    setDialog([
+      'あなたは AKクワイア のメンバーとして、',
+      'リトアニア音楽の祭典「ダイヌシュベンテ」で歌うため、',
+      'はるばる ヴィリニュス にやってきた。',
+      'ところが——歌詞をすっかり忘れてしまった！',
+      'リトアニア国内に散らばった歌詞のピースを集めて、祭典で歌い上げよう。',
+      '（緑の草むらでは戦闘あり。Aで人と話す／観光名所を調べる）',
+      '（西の建物（赤屋根♪）はみほさんの宿屋。HP/MP回復＋セーブ）',
+    ]);
+  }
+
+  function openingResume() {
+    setDialog([`おかえりなさい、${state.party[0].name}！ 旅をつづけよう。`]);
+  }
+
+  // ============================================================
+  // フィールド描画
+  // ============================================================
   function renderField() {
     clear('#000');
     const { cx, cy } = getCamera();
@@ -343,63 +764,75 @@
       const sx = (n.x - cx) * TILE;
       const sy = (n.y - cy) * TILE;
       if (sx < -TILE || sx >= CANVAS_W || sy < -TILE || sy >= CANVAS_H) return;
-      drawNPC(sx, sy, n.kind);
+      drawChar(sx, sy, 'down', n.look);
     });
-    drawHero((state.px - cx) * TILE, (state.py - cy) * TILE, state.pdir);
-  }
-
-  function renderTitle() {
-    clear('#1a1a2a');
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 22px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('リトアニア音楽紀行', CANVAS_W / 2, 110);
-    ctx.font = '14px sans-serif';
-    ctx.fillText('〜失われた歌詞のピース〜', CANVAS_W / 2, 140);
-    ctx.fillStyle = '#dac030';
-    ctx.fillText('Aを押してはじめる', CANVAS_W / 2, 240);
-    ctx.textAlign = 'left';
-    ctx.fillStyle = '#3a4abe';
-    ctx.fillRect(50, 170, CANVAS_W - 100, 3);
-    ctx.fillRect(50, 195, CANVAS_W - 100, 3);
+    drawChar((state.px - cx) * TILE, (state.py - cy) * TILE, state.pdir, state.party[0].look);
   }
 
   function renderBattle() {
     clear('#1a1a2a');
     ctx.fillStyle = '#2a3a5a';
-    ctx.fillRect(0, 0, CANVAS_W, 220);
+    ctx.fillRect(0, 0, CANVAS_W, 200);
     ctx.fillStyle = '#5a8aae';
     for (let i = 0; i < 8; i++) {
       ctx.fillRect(30 + i * 48, 36 + (i % 2) * 24, 18, 10);
     }
-    drawEnemy(130, 50, state.enemy.type);
+    drawEnemy(130, 40, state.enemy.type);
+    // 敵HPバー
     const hpRatio = state.enemy.hp / state.enemy.maxHp;
-    rect(70, 250, 240, 10, '#3a2a1a');
-    rect(72, 252, 236 * Math.max(0, hpRatio), 6, '#dac030');
+    rect(70, 220, 240, 10, '#3a2a1a');
+    rect(72, 222, 236 * Math.max(0, hpRatio), 6, '#dac030');
     ctx.fillStyle = '#fff';
     ctx.font = '12px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(state.enemy.name + ' 感動度 ' + Math.max(0, state.enemy.hp) + '/' + state.enemy.maxHp, CANVAS_W / 2, 246);
+    ctx.fillText(state.enemy.name + ' 感動度 ' + Math.max(0, state.enemy.hp) + '/' + state.enemy.maxHp, CANVAS_W / 2, 216);
+    // パーティ3人
     ctx.textAlign = 'left';
+    state.party.forEach((p, i) => {
+      const px = 10 + i * 125;
+      const py = 245;
+      ctx.fillStyle = p.alive ? '#222' : '#3a1a1a';
+      ctx.fillRect(px, py, 120, 60);
+      ctx.fillStyle = p.alive ? '#fff' : '#888';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.fillText(p.name, px + 6, py + 15);
+      // HPバー
+      ctx.fillStyle = '#3a2a1a'; ctx.fillRect(px + 6, py + 22, 108, 6);
+      ctx.fillStyle = '#3aae5a'; ctx.fillRect(px + 6, py + 22, 108 * Math.max(0, p.hp / p.maxHp), 6);
+      ctx.fillStyle = '#fff'; ctx.font = '10px sans-serif';
+      ctx.fillText(`HP ${Math.max(0,p.hp)}/${p.maxHp}`, px + 6, py + 36);
+      // MPバー
+      ctx.fillStyle = '#3a2a1a'; ctx.fillRect(px + 6, py + 40, 108, 5);
+      ctx.fillStyle = '#3a8abe'; ctx.fillRect(px + 6, py + 40, 108 * Math.max(0, p.mp / p.maxMp), 5);
+      ctx.fillText(`MP ${Math.max(0,p.mp)}/${p.maxMp}`, px + 6, py + 54);
+    });
+    if (state.buff > 0) {
+      ctx.fillStyle = '#dac030';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.fillText('★エホーマイ ' + state.buff, 10, 318);
+    }
   }
 
   function render() {
-    if (state.scene === 'title') renderTitle();
-    else if (state.scene === 'battle' || state.scene === 'win' || state.scene === 'lose') renderBattle();
+    if (state.scene === 'title') return; // titleはhtml側
+    if (state.scene === 'newgame') return;
+    if (state.scene === 'battle' || state.scene === 'win' || state.scene === 'lose') renderBattle();
     else renderField();
     updateStatus();
   }
+  function renderAndUpdate() { render(); updateStatus(); }
 
   function updateStatus() {
     const s = document.getElementById('status');
-    if (state.scene === 'title') { s.textContent = ''; return; }
+    if (s.dataset.flash) { s.textContent = s.dataset.flash; return; }
+    if (state.scene === 'title' || state.scene === 'newgame') { s.textContent = ''; return; }
     s.innerHTML =
-      `<span>Lv ${state.lv} HP ${state.hp}/${state.maxHp} MP ${state.mp}/${state.maxMp}</span>` +
-      `<span>♪${state.pieces}/3 G ${state.gold}</span>`;
+      `<span>Lv ${state.lv} ${state.party[0].name} HP${state.party[0].hp}/${state.party[0].maxHp}</span>` +
+      `<span>♪${state.pieces} G${state.gold}</span>`;
   }
 
   // ============================================================
-  // ダイアログ（将来 js/systems/dialog.js に分離）
+  // ダイアログ
   // ============================================================
   function setDialog(lines, after, choices, onChoice) {
     state.dialog = Array.isArray(lines) ? lines : [lines];
@@ -407,12 +840,12 @@
     state.afterDialog = after || null;
     state.choices = choices || null;
     state.onChoice = onChoice || null;
-    if (state.scene !== 'battle' && state.scene !== 'win' && state.scene !== 'lose') {
+    if (state.scene !== 'battle' && state.scene !== 'win' && state.scene !== 'lose' &&
+        state.scene !== 'title' && state.scene !== 'newgame') {
       state.scene = 'dialog';
     }
     showDialog();
   }
-
   function showDialog() {
     const d = document.getElementById('dialog');
     if (state.dialog.length === 0) { d.textContent = ''; return; }
@@ -433,19 +866,16 @@
       b.addEventListener('click', () => {
         const i = parseInt(b.dataset.choice, 10);
         const fn = state.onChoice;
-        state.choices = null; state.onChoice = null;
-        state.dialog = [];
+        state.choices = null; state.onChoice = null; state.dialog = [];
         document.getElementById('dialog').textContent = '';
         if (fn) fn(i);
       });
     });
   }
-
   function advanceDialog() {
     if (state.choices) return;
     if (state.dialogIdx < state.dialog.length - 1) {
-      state.dialogIdx++;
-      showDialog();
+      state.dialogIdx++; showDialog();
     } else {
       state.dialog = [];
       document.getElementById('dialog').textContent = '';
@@ -458,64 +888,119 @@
   }
 
   // ============================================================
-  // NPC会話・リト語学習（将来 js/systems/dialog_npc.js に分離）
+  // NPC会話
   // ============================================================
   function talkNPC(npc) {
-    if (npc.kind === 'akmate') {
+    if (npc.kind === 'akihiro') {
       setDialog([
-        'AKクワイア仲間：「やっとここまで来たか！」',
-        '「ダイヌシュベンテはもうすぐだ。歌詞のピースを集めてきてくれ。」',
-        '「街の人たちはみんなあいさつから話しかけてくる。リト語のあいさつを覚えるんだ：',
+        `${state.party[1].name}：「Labas! 元気でやってるかい？」`,
+        '「ダイヌシュベンテはもうすぐだ。ピースを集めるぞ！」',
+        '「街の人にはリト語のあいさつから話しかけよう：',
         '・Labas（ラバス）= こんにちは',
         '・Ačiū（アチュー）= ありがとう',
         '・Kaip sekasi?（カイプ・セカシ）= 元気？',
-        '「ゲディミナス塔の番人がピースの１つを守ってる。レベルを上げてから挑むといい。」',
+        '「マンタスはこの街の顔役だ。レストランで会えるよ。」',
       ]);
       return;
     }
-
+    if (npc.kind === 'miho') {
+      setDialog([
+        `${state.party[2].name}：「ようこそ私の宿屋へ！」`,
+        '「ここで休めばHPもMPも全回復するよ。料金はサービスしとくね♪」',
+        '「冒険の記録もここで自動セーブしておくから安心してね。」',
+        '「（宿屋の入口（赤屋根♪）でAボタンで休める）」',
+      ]);
+      return;
+    }
+    if (npc.kind === 'mantas') {
+      const greet = ['Labas! いらっしゃい！', 'Sveiki! 今日のキビナイは絶品だよ。'];
+      setDialog(
+        [`マンタス：「${greet[Math.floor(Math.random() * greet.length)]}」`,
+         '色白でほっそり、眼鏡の似合う紳士。声は朗々として通る。',
+         'マンタス：「ヴィリニュスは初めて？じゃあリト語のあいさつ、覚えていきな。」',
+         'NPCが何かをくれそうだ。お礼にあたる言葉は？'],
+        null,
+        ['Labas!', 'Ačiū!', 'Kaip sekasi?'],
+        (i) => {
+          if (i === 1) {
+            if (!state.flags.mantas) {
+              state.flags.mantas = true;
+              state.gold += 30;
+              setDialog([
+                'マンタス：「Ačiū! 良い発音だ。」',
+                '「これは餞別だ。旅の足しに。」',
+                '【30G を受け取った！】',
+                '「ピースの噂か？塔の番人のところに1つあると聞いたぞ。気をつけてな。」',
+              ], () => saveGame());
+            } else {
+              setDialog(['マンタス：「Ačiū! 今日も良い日だな。」']);
+            }
+          } else {
+            setDialog(['マンタス：「???」', '（うまく通じなかったようだ…）']);
+          }
+        }
+      );
+      return;
+    }
+    if (npc.kind === 'ieva') {
+      setDialog(
+        ['イエヴァ：「Labas vakaras… 旅の方ですか？」',
+         '物静かで透き通った声の女性。手に楽譜を持っている。',
+         '「あなたの歌、聴いてみたいです。元気？」'],
+        null,
+        ['Labas!', 'Ačiū!', 'Kaip sekasi?'],
+        (i) => {
+          if (i === 2) {
+            if (!state.flags.ieva) {
+              state.flags.ieva = true;
+              setDialog([
+                'イエヴァ：「Puikiai! 私も歌うのが大好きで…」',
+                '「歌は気持ちを伝えるただひとつの言葉、だと思うんです。」',
+                '「ピースの噂、わたしも気にしておきます。また会いましょう。」',
+              ]);
+            } else {
+              setDialog(['イエヴァ：「また会えてうれしい。」']);
+            }
+          } else {
+            setDialog(['イエヴァ：「???」', '（うまく通じなかったようだ…）']);
+          }
+        }
+      );
+      return;
+    }
     if (npc.kind === 'guardian') {
       if (state.flags.guardian) {
         setDialog('（塔の番人は感動の涙を流して去っていった…）');
         return;
       }
       setDialog(
-        [
-          '塔の番人：「貴様、何用だ。」',
-          '「歌詞のピースが欲しいだと？簡単には渡せん。」',
-          '「我を感動させてみよ！」',
-        ],
+        ['塔の番人：「貴様ら、何用だ。」',
+         '「歌詞のピースが欲しいだと？簡単には渡せん。」',
+         '「我を感動させてみよ！」'],
         () => startBattle({
-          type: 'guardian',
-          name: '塔の番人',
-          hp: 60, maxHp: 60,
-          atk: 5, xp: 25, gold: 50,
-          boss: true,
+          type: 'guardian', name: '塔の番人',
+          hp: 80, maxHp: 80, atk: 6, xp: 30, gold: 50, boss: true,
         })
       );
       return;
     }
 
+    // 一般NPC（あいさつ学習）
     const hintMap = {
-      labas: { q: 'NPCがあなたに微笑みかけている。なんとあいさつする？', correct: 0,
-               opts: ['Labas!（こんにちは）', 'Ačiū!（ありがとう）', 'Kaip sekasi?（元気？）'] },
-      aciu:  { q: 'NPCが何かをくれそうだ。お礼にあたる言葉は？',         correct: 1,
-               opts: ['Labas!（こんにちは）', 'Ačiū!（ありがとう）', 'Kaip sekasi?（元気？）'] },
-      kaip:  { q: 'NPCの調子をたずねたい。なんと声をかける？',           correct: 2,
-               opts: ['Labas!（こんにちは）', 'Ačiū!（ありがとう）', 'Kaip sekasi?（元気？）'] },
+      labas: { q: 'NPCがあなたに微笑みかけている。なんとあいさつする？', correct: 0 },
+      aciu:  { q: 'NPCが何かをくれそうだ。お礼にあたる言葉は？',         correct: 1 },
+      kaip:  { q: 'NPCの調子をたずねたい。なんと声をかける？',           correct: 2 },
     };
-
     const greetWord = (k) =>
       k === 'labas' ? 'Labas! 旅の人かい？'
       : k === 'aciu' ? 'Sveiki! 焼きたてのキビナイがあるよ。'
       : k === 'kaip' ? 'Labas vakaras… ふぅ、疲れたねぇ。'
       : '';
-
     const h = hintMap[npc.hint];
     setDialog(
       [npc.name + '：「' + greetWord(npc.hint) + '」', h.q],
       null,
-      h.opts,
+      ['Labas!（こんにちは）', 'Ačiū!（ありがとう）', 'Kaip sekasi?（元気？）'],
       (i) => {
         if (i === h.correct) afterCorrect(npc);
         else setDialog([npc.name + '：「???」', '（うまく通じなかったようだ…）']);
@@ -524,14 +1009,13 @@
   }
 
   function afterCorrect(npc) {
-    if (npc.kind === 'baker' && !state.flags.baker) {
-      state.flags.baker = true; state.pieces++;
+    if (npc.kind === 'shop' && !state.flags.shop) {
+      state.flags.shop = true; state.pieces++;
       setDialog([
         npc.name + '：「Ačiū! きれいなリト語だね。」',
         '「これはおまけだよ」と歌詞のピースをくれた！',
-        '【歌詞ピース ♪' + state.pieces + '/3 入手】',
-        '「あんたの歌、聴いてみたいねぇ。」',
-      ]);
+        '【歌詞ピース ♪' + state.pieces + ' 入手】',
+      ], () => saveGame());
       return;
     }
     if (npc.kind === 'child' && !state.flags.child) {
@@ -539,59 +1023,88 @@
       setDialog([
         npc.name + '：「わぁ、リト語じょうず！」',
         '子どもは大切にしていた紙切れを差し出した。',
-        '【歌詞ピース ♪' + state.pieces + '/3 入手】',
-        '「この紙、おじいちゃんが歌うときの大事な言葉なんだって。」',
-      ]);
+        '【歌詞ピース ♪' + state.pieces + ' 入手】',
+      ], () => saveGame());
+      return;
+    }
+    if (npc.kind === 'bard' && !state.flags.bard) {
+      state.flags.bard = true; state.pieces++;
+      setDialog([
+        npc.name + '：「お、リト語が話せるのか。気に入った。」',
+        '「俺の弟子に渡そうと思ってた歌詞だ、譲ろう。」',
+        '【歌詞ピース ♪' + state.pieces + ' 入手】',
+      ], () => saveGame());
       return;
     }
     const hints = {
-      greeter: '「ゲディミナス塔の番人は、強い感動を与えないと心を開かないよ。」',
-      bard:    '「♪歌うコマンドは消費MPと威力が違う。MPが切れたら宿屋でね。」',
-      student: '「観光名所に立つと、その場所の話が聞けるよ。」',
-      elder:   '「子どもがピースを持ってると噂だ。リト語で話しかけてごらん。」',
+      priest:  '「大聖堂は静かに祈る場所。心を静めるのに良い。」',
+      elder:   '「ゲディミナス塔の番人は感動が深い者にしか心を開かない。」',
     };
-    const hint = hints[npc.kind] || '「Lietuva（リトアニア）にようこそ。」';
+    const hint = hints[npc.kind] || '「Lietuva にようこそ。」';
     setDialog([npc.name + '：「Ačiū! きれいなリト語だね。」', npc.name + '：' + hint]);
   }
 
   // ============================================================
-  // 観光名所
+  // 観光名所＋特殊タイル
   // ============================================================
-  function checkLandmark(t) {
-    if (t === 6) {
-      setDialog([
-        '【ゲディミナス塔】',
+  function checkLandmark(t, fx, fy) {
+    if (t === T.GEDIMINAS) {
+      setDialog(['【ゲディミナス塔】',
         'ヴィリニュスの旧市街を見下ろす赤レンガの塔。',
         'リトアニア大公国の象徴であり、塔の上には三色旗が翻る。',
-        '（塔の前に番人が立ちはだかっている…）',
-      ]);
+        '（塔の前に番人が立ちはだかっている…）']);
       return true;
     }
-    if (t === 7) {
-      setDialog(
-        [
-          '【夜明けの門】',
-          '街の南の入り口にあたる古い城門。',
-          '門の上の小さな礼拝堂には黒いマドンナのイコンが祀られている。',
-          '（不思議と心が落ち着いた。HPが全回復した！）',
-        ],
-        () => { state.hp = state.maxHp; state.mp = state.maxMp; }
+    if (t === T.GATES) {
+      setDialog(['【夜明けの門】',
+        '街の南の入り口にあたる古い城門。',
+        '門の上の小さな礼拝堂には黒いマドンナのイコンが祀られている。',
+        '（不思議と心が落ち着いた。HP/MPが少し回復）'],
+        () => { state.party.forEach(p => { p.hp = Math.min(p.maxHp, p.hp + 10); p.mp = Math.min(p.maxMp, p.mp + 5); }); });
+      return true;
+    }
+    if (t === T.ANNE) {
+      setDialog(['【聖アンナ教会】',
+        '赤レンガで建てられた後期ゴシック様式の教会。',
+        'ナポレオンが「手のひらに乗せてパリに持ち帰りたい」と言ったという伝説。']);
+      return true;
+    }
+    if (t === T.CATHEDRAL) {
+      setDialog(['【ヴィリニュス大聖堂】',
+        '街の中心、白い列柱の堂々たる聖堂。',
+        '隣接する鐘楼は街のシンボルでもある。']);
+      return true;
+    }
+    if (t === T.INN) {
+      // みほさん宿屋
+      setDialog(['【みほさんの宿屋】',
+        '「いらっしゃい！ 一晩 0G でいいよ♪」',
+        '「ぐっすり休んで、目が覚めたら全回復よ。」'],
+        null,
+        ['泊まる', '泊まらない'],
+        (i) => {
+          if (i === 0) {
+            state.party.forEach(p => { p.hp = p.maxHp; p.mp = p.maxMp; p.alive = true; });
+            saveGame();
+            setDialog(['Zzz... ぐっすり眠った。HP/MP全回復＆セーブ完了！']);
+          } else {
+            setDialog(['「またのお越しを♪」']);
+          }
+        }
       );
       return true;
     }
-    if (t === 8) {
-      setDialog([
-        '【聖アンナ教会】',
-        '赤レンガで建てられた後期ゴシック様式の教会。',
-        'ナポレオンが「手のひらに乗せてパリに持ち帰りたい」と言ったという伝説。',
-      ]);
+    if (t === T.AKHALL) {
+      setDialog(['【AKクワイア集会所】',
+        'みんなで歌の練習をしている。',
+        '「ダイヌシュベンテの本番、楽しみだね！」']);
       return true;
     }
     return false;
   }
 
   // ============================================================
-  // 戦闘システム（将来 js/systems/battle.js に分離）
+  // 戦闘システム（3人パーティ）
   // ============================================================
   const SONGS = [
     { n: 'やさしい歌', mp: 2, base: 6  },
@@ -603,6 +1116,8 @@
     state.enemy = Object.assign({}, enemy);
     state.scene = 'battle';
     state.battleLog = enemy.name + 'があらわれた！';
+    state.battleStep = 'menu';
+    state.buff = 0;
     render();
     showBattleUI();
   }
@@ -610,60 +1125,134 @@
   function showBattleUI() {
     const d = document.getElementById('dialog');
     let html = '<div style="font-size:13px;margin-bottom:6px;">' + state.battleLog + '</div>';
-    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">';
-    SONGS.forEach((s, i) => {
-      const dis = state.mp < s.mp ? 'opacity:0.5;' : '';
-      html += `<button data-song="${i}" style="${dis}padding:6px;font-size:12px;background:#222;border:1px solid #555;border-radius:6px;color:#fff;cursor:pointer;text-align:left;">♪ ${s.n}<br><span style="font-size:10px;color:#aaa;">MP${s.mp} / 威力${s.base}±</span></button>`;
-    });
-    html += '<button data-flee="1" style="padding:6px;font-size:12px;background:#222;border:1px solid #555;border-radius:6px;color:#fff;cursor:pointer;">逃げる</button>';
-    html += '</div>';
-    d.innerHTML = html;
-
-    d.querySelectorAll('[data-song]').forEach(b => {
-      b.addEventListener('click', () => {
-        const i = parseInt(b.dataset.song, 10);
-        const s = SONGS[i];
-        if (state.mp < s.mp) return;
-        playerSing(s);
+    if (state.battleStep === 'menu') {
+      html += '<div style="font-size:11px;color:#aaa;margin-bottom:4px;">▼ ' + state.party[0].name + ' のコマンド</div>';
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">';
+      SONGS.forEach((s, i) => {
+        const dis = state.party[0].mp < s.mp ? 'opacity:0.5;' : '';
+        html += `<button data-act="sing-${i}" style="${dis}padding:6px;font-size:12px;background:#222;border:1px solid #555;border-radius:6px;color:#fff;cursor:pointer;text-align:left;">♪ ${s.n}<br><span style="font-size:10px;color:#aaa;">MP${s.mp}/威${s.base}±</span></button>`;
       });
-    });
-    d.querySelectorAll('[data-flee]').forEach(b => {
+      // 励ます
+      const downAlly = state.party.find((p, i) => i > 0 && !p.alive);
+      const encDis = !downAlly ? 'opacity:0.5;' : '';
+      html += `<button data-act="encourage" style="${encDis}padding:6px;font-size:12px;background:#222;border:1px solid #555;border-radius:6px;color:#fff;cursor:pointer;text-align:left;">★ 励ます<br><span style="font-size:10px;color:#aaa;">倒れた仲間1人を復活</span></button>`;
+      // エホーマイ（コンボ）
+      const allAlive = state.party.every(p => p.alive);
+      const totalMp = state.party.reduce((s, p) => s + p.mp, 0);
+      const ehoOk = allAlive && state.party[0].mp >= 6 && state.party[1].mp >= 1 && state.party[2].mp >= 1;
+      const ehoDis = ehoOk ? '' : 'opacity:0.5;';
+      html += `<button data-act="ehomai" style="${ehoDis}padding:6px;font-size:12px;background:#3a2a4a;border:1px solid #dac030;border-radius:6px;color:#dac030;cursor:pointer;text-align:left;">★エホーマイ<br><span style="font-size:10px;">3人合唱 / 3T威力2倍</span></button>`;
+      html += `<button data-act="flee" style="padding:6px;font-size:12px;background:#222;border:1px solid #555;border-radius:6px;color:#fff;cursor:pointer;">逃げる</button>`;
+      html += '</div>';
+    }
+    d.innerHTML = html;
+    d.querySelectorAll('[data-act]').forEach(b => {
       b.addEventListener('click', () => {
-        if (state.enemy.boss) {
-          state.battleLog = 'ボスからは逃げられない！';
-          showBattleUI();
-          return;
-        }
-        if (Math.random() < 0.6) {
-          state.scene = 'field';
-          setDialog('（うまく逃げ切った…）');
-        } else {
-          state.battleLog = '逃げられなかった！';
-          enemyTurn();
+        const a = b.dataset.act;
+        if (a.startsWith('sing-')) {
+          const i = parseInt(a.split('-')[1], 10);
+          const s = SONGS[i];
+          if (state.party[0].mp < s.mp) return;
+          heroSing(s);
+        } else if (a === 'encourage') {
+          if (state.party.find((p, i) => i > 0 && !p.alive)) heroEncourage();
+        } else if (a === 'ehomai') {
+          const ok = state.party.every(p => p.alive) && state.party[0].mp >= 6 && state.party[1].mp >= 1 && state.party[2].mp >= 1;
+          if (ok) heroEhomai();
+        } else if (a === 'flee') {
+          if (state.enemy.boss) { state.battleLog = 'ボスからは逃げられない！'; showBattleUI(); return; }
+          if (Math.random() < 0.6) { state.scene = 'field'; setDialog('（うまく逃げ切った…）'); }
+          else { state.battleLog = '逃げられなかった！'; setTimeout(allyTurns, 300); }
         }
       });
     });
   }
 
-  function playerSing(s) {
-    state.mp -= s.mp;
+  function heroSing(s) {
+    state.party[0].mp -= s.mp;
     state.songCounter++;
     let dmg = s.base + Math.floor(Math.random() * 4) - 1 + state.lv;
+    if (state.buff > 0) dmg *= 2;
     if (state.enemy.boss) dmg = Math.max(1, dmg - 3);
     state.enemy.hp -= dmg;
     state.battleLog = `♪「${s.n}」を歌った！ ${state.enemy.name}に感動${dmg}！`;
     if (state.enemy.hp <= 0) { victory(); return; }
-    setTimeout(enemyTurn, 400);
-    showBattleUI();
+    render();
+    setTimeout(allyTurns, 500);
+  }
+
+  function heroEncourage() {
+    const down = state.party.find((p, i) => i > 0 && !p.alive);
+    if (!down) return;
+    down.alive = true;
+    down.hp = Math.floor(down.maxHp / 2);
+    state.battleLog = `${state.party[0].name}は ${down.name} を励ました！ HPが半分回復！`;
+    render();
+    setTimeout(allyTurns, 500);
+  }
+
+  function heroEhomai() {
+    state.party[0].mp -= 6; state.party[1].mp -= 1; state.party[2].mp -= 1;
+    state.buff = 3;
+    state.songCounter++;
+    let dmg = 25 + state.lv * 2;
+    if (state.enemy.boss) dmg = Math.max(1, dmg - 3);
+    state.enemy.hp -= dmg;
+    state.battleLog = `★エホーマイ！3人の合唱が響き渡る！ 感動${dmg}！ 以後3T威力2倍！`;
+    if (state.enemy.hp <= 0) { victory(); return; }
+    render();
+    setTimeout(allyTurns, 700);
+  }
+
+  function allyTurns() {
+    // 仲間1
+    setTimeout(() => allyAct(1, () => {
+      if (state.enemy.hp <= 0) { victory(); return; }
+      // 仲間2
+      setTimeout(() => allyAct(2, () => {
+        if (state.enemy.hp <= 0) { victory(); return; }
+        setTimeout(enemyTurn, 400);
+      }), 400);
+    }), 400);
+  }
+
+  function allyAct(idx, cb) {
+    const a = state.party[idx];
+    if (!a.alive) { cb(); return; }
+    // AI: MPあれば歌、なければ普通に応援(微小ダメージ)
+    let s = null;
+    if (a.mp >= SONGS[1].mp && state.enemy.hp > 30) s = SONGS[1];
+    else if (a.mp >= SONGS[0].mp) s = SONGS[0];
+    if (s) {
+      a.mp -= s.mp;
+      let dmg = s.base + Math.floor(Math.random() * 4) - 2 + state.lv;
+      if (state.buff > 0) dmg *= 2;
+      if (state.enemy.boss) dmg = Math.max(1, dmg - 3);
+      state.enemy.hp -= dmg;
+      state.battleLog = `${a.name}：♪「${s.n}」 感動${dmg}！`;
+    } else {
+      const dmg = 2 + Math.floor(Math.random() * 3);
+      state.enemy.hp -= dmg;
+      state.battleLog = `${a.name}：声援を送った！ 感動${dmg}！`;
+    }
+    render(); cb();
   }
 
   function enemyTurn() {
+    if (state.buff > 0) state.buff--;
+    const aliveIdx = state.party.map((p, i) => p.alive ? i : -1).filter(i => i >= 0);
+    if (aliveIdx.length === 0) { defeat(); return; }
+    const tgt = aliveIdx[Math.floor(Math.random() * aliveIdx.length)];
     const atk = state.enemy.atk + Math.floor(Math.random() * 3);
-    state.hp -= atk;
-    state.battleLog = `${state.enemy.name}の批判！ HP${atk}減少！`;
-    if (state.hp <= 0) { state.hp = 0; defeat(); return; }
-    showBattleUI();
-    render();
+    state.party[tgt].hp -= atk;
+    state.battleLog = `${state.enemy.name}の批判！ ${state.party[tgt].name} HP${atk}減少！`;
+    if (state.party[tgt].hp <= 0) {
+      state.party[tgt].hp = 0;
+      state.party[tgt].alive = false;
+      state.battleLog += ` ${state.party[tgt].name}は気を失った！`;
+    }
+    if (!state.party[0].alive) { defeat(); return; }
+    render(); showBattleUI();
   }
 
   function victory() {
@@ -678,34 +1267,28 @@
       state.lv++;
       state.xp -= state.nextXp;
       state.nextXp = Math.floor(state.nextXp * 1.6);
-      state.maxHp += 4; state.hp = state.maxHp;
-      state.maxMp += 2; state.mp = state.maxMp;
-      msg.push(`♪レベルアップ！ Lv${state.lv}になった！`);
+      state.party.forEach(p => { p.maxHp += 4; p.hp = p.maxHp; p.maxMp += 2; p.mp = p.maxMp; });
+      msg.push(`♪レベルアップ！ Lv${state.lv}！ パーティ全員が成長した！`);
     }
     if (state.enemy.boss && !state.flags.guardian) {
       state.flags.guardian = true;
       state.pieces++;
       msg.push('塔の番人は静かに歌詞ピースを差し出した…');
-      msg.push('【歌詞ピース ♪' + state.pieces + '/3 入手】');
-      if (state.pieces >= 3) {
-        msg.push('★ 3つすべての歌詞ピースが揃った！');
-        msg.push('（次回：他都市・キーパーソン編へ続く…）');
-      }
+      msg.push('【歌詞ピース ♪' + state.pieces + ' 入手】');
     }
-    setDialog(msg, () => { state.scene = 'field'; render(); });
+    setDialog(msg, () => { state.scene = 'field'; saveGame(); render(); });
   }
 
   function defeat() {
     state.scene = 'lose';
     setDialog(
-      [
-        `${state.enemy.name}に感動させられてしまった…`,
-        'あなたは涙ぐみながら振り出しの宿屋で目を覚ました。',
-      ],
+      [`${state.party[0].name}は感動させられて倒れた…`,
+       'みほさんの宿屋で目を覚ました。'],
       () => {
-        state.hp = state.maxHp; state.mp = state.maxMp;
-        state.px = 15; state.py = 16;
+        state.party.forEach(p => { p.hp = p.maxHp; p.mp = p.maxMp; p.alive = true; });
+        state.px = 11; state.py = 18; // 宿屋前
         state.scene = 'field';
+        saveGame();
         render();
       }
     );
@@ -717,13 +1300,15 @@
   function isWalkable(x, y) {
     if (x < 0 || x >= MAP_COLS || y < 0 || y >= MAP_ROWS) return false;
     const t = MAP[y][x];
-    return t !== 2 && t !== 3 && t !== 4 && t !== 6 && t !== 7 && t !== 8;
+    // 通行不可: 壁・木・水・観光建物・大聖堂
+    return t !== T.WALL && t !== T.TREE && t !== T.WATER &&
+           t !== T.GEDIMINAS && t !== T.GATES && t !== T.ANNE && t !== T.CATHEDRAL;
   }
-
   function npcAt(x, y) {
     return NPCS.find(n => n.x === x && n.y === y && !(n.kind === 'guardian' && state.flags.guardian));
   }
 
+  let _lastEncTile = null;
   function tryMove(dx, dy, dir) {
     state.pdir = dir;
     const nx = state.px + dx;
@@ -731,10 +1316,10 @@
     if (!isWalkable(nx, ny)) { render(); return; }
     if (npcAt(nx, ny))       { render(); return; }
     state.px = nx; state.py = ny;
-    if (MAP[ny][nx] === 9 && Math.random() < 0.18) {
+    if (MAP[ny][nx] === T.ENC && Math.random() < 0.18) {
       const tier = state.lv < 3
-        ? { hp: 14, atk: 3, xp: 5, gold: 8 }
-        : { hp: 22, atk: 4, xp: 7, gold: 12 };
+        ? { hp: 16, atk: 3, xp: 5, gold: 8 }
+        : { hp: 26, atk: 5, xp: 8, gold: 14 };
       const names = ['通りすがりの市民', '陽気なおじさん', '頑固な老婦人', '若い学生'];
       startBattle({
         type: 'citizen',
@@ -748,18 +1333,7 @@
   }
 
   function pressA() {
-    if (state.scene === 'title') {
-      state.scene = 'field';
-      renderField();
-      setDialog([
-        'あなたはAKクワイアの一員。',
-        'リトアニアの音楽の祭典「ダイヌシュベンテ」で歌うため、はるばるやってきた。',
-        'ところが——歌詞をすっかり忘れてしまった！',
-        'リトアニア国内に散らばった歌詞のピースを集めて、祭典で歌い上げよう。',
-        '（緑の草むらでは戦闘あり。Aで人と話す／観光名所を調べる）',
-      ]);
-      return;
-    }
+    if (state.scene === 'title' || state.scene === 'newgame') return; // ボタン操作で進める
     if (state.dialog.length > 0) { advanceDialog(); return; }
     if (state.scene === 'battle') return;
 
@@ -767,14 +1341,13 @@
     const dy = state.pdir === 'up'   ? -1 : state.pdir === 'down'  ? 1 : 0;
     const fx = state.px + dx;
     const fy = state.py + dy;
-    const npc = NPCS.find(n => n.x === fx && n.y === fy);
+    const npc = NPCS.find(n => n.x === fx && n.y === fy && !(n.kind === 'guardian' && state.flags.guardian));
     if (npc) { talkNPC(npc); return; }
     if (fx >= 0 && fx < MAP_COLS && fy >= 0 && fy < MAP_ROWS) {
-      if (checkLandmark(MAP[fy][fx])) return;
+      if (checkLandmark(MAP[fy][fx], fx, fy)) return;
     }
     setDialog('（…特に何もない。）');
   }
-
   function pressB() {
     if (state.dialog.length > 0) {
       state.dialogIdx = state.dialog.length - 1;
@@ -797,7 +1370,6 @@
   });
   document.getElementById('btnA').addEventListener('click', pressA);
   document.getElementById('btnB').addEventListener('click', pressB);
-
   window.addEventListener('keydown', (e) => {
     if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d','z','x',' ','Enter'].includes(e.key)) {
       e.preventDefault();
@@ -812,5 +1384,9 @@
     if (e.key === 'x' || e.key === 'Escape') pressB();
   });
 
-  render();
+  // ============================================================
+  // 起動
+  // ============================================================
+  showTitleMenu();
+
 })();
