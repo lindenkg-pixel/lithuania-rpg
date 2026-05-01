@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Kur giria - クライマックステスター</title>
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:#0e0e1a;color:#fff;font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN",sans-serif;}
+  body{display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:24px;}
+  h1{font-size:18px;margin:0 0 8px;}
+  .sub{font-size:12px;color:#aaa;margin-bottom:20px;}
+  .panel{background:#1a1a2a;border:1px solid #333;border-radius:10px;padding:18px;width:min(560px,100%);}
+  .row{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+  .row label{font-size:12px;color:#aaa;width:96px;}
+  .row input[type=range]{flex:1;}
+  .row .val{font-size:12px;width:48px;text-align:right;color:#dac030;}
+  .btn{background:#222;border:1px solid #555;border-radius:8px;color:#fff;padding:10px 16px;font-size:14px;cursor:pointer;}
+  .btn:active{background:#333;}
+  .btn.primary{background:#3a2a4a;border-color:#dac030;color:#dac030;}
+  .btn.danger{background:#3a1a1a;border-color:#aa3030;color:#ffaaaa;}
+  .controls{display:flex;gap:10px;margin-top:6px;}
+  .notes{margin-top:18px;border-top:1px solid #333;padding-top:14px;}
+  .notes h2{font-size:13px;margin:0 0 8px;color:#aaa;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:6px;}
+  .cell{background:#222;border:1px solid #444;border-radius:6px;padding:6px;font-size:11px;text-align:center;}
+  .cell.active{background:#5a4a6a;border-color:#dac030;color:#dac030;}
+  .cell .pitch{font-weight:bold;font-size:13px;}
+  .cell .beats{color:#aaa;font-size:10px;}
+  .legend{font-size:11px;color:#888;margin-top:14px;line-height:1.6;}
+  code{color:#dac030;}
+</style>
+</head>
+<body>
+  <h1>Kur giria — クライマックステスター</h1>
+  <div class="sub">Web Audio API で「歌声風」音色を合成しています（ゲーム内と同じ実装）</div>
+
+  <div class="panel">
+    <div class="row">
+      <label>テンポ</label>
+      <input type="range" id="tempo" min="60" max="180" value="110" step="1">
+      <div class="val"><span id="tempoVal">110</span></div>
+    </div>
+    <div class="row">
+      <label>音量</label>
+      <input type="range" id="vol" min="0" max="100" value="60" step="1">
+      <div class="val"><span id="volVal">60</span>%</div>
+    </div>
+    <div class="row">
+      <label>ビブラート</label>
+      <input type="range" id="vib" min="0" max="40" value="8" step="1">
+      <div class="val"><span id="vibVal">8</span>c</div>
+    </div>
+    <div class="controls">
+      <button class="btn primary" id="play">▶ 再生</button>
+      <button class="btn" id="loop">↻ ループ</button>
+      <button class="btn danger" id="stop">■ 停止</button>
+    </div>
+
+    <div class="notes">
+      <h2>音符（再生中はハイライト）</h2>
+      <div class="grid" id="grid"></div>
+    </div>
+
+    <div class="legend">
+      表記: <code>下のソ=G4(392Hz)</code> / <code>標準=C5〜F5</code> / <code>上のミ=E6(1319Hz)</code> / <code>上のソ=G6(1568Hz)</code><br>
+      合計29拍。ゲーム内と同じ <code>SONG_BGM.kur.climax</code> 配列を使用。
+    </div>
+  </div>
+
+<script>
+'use strict';
+
+// ゲーム内 SONG_BGM.kur.climax と同一データ
+const NOTES = [
+  { freq: 392, beats: 2, label: '下のソ', sym: 'ソ↓' },
+  { freq: 659, beats: 4, label: 'ミ',    sym: 'ミ'   },
+  { freq: 587, beats: 3, label: 'レ',    sym: 'レ'   },
+  { freq: 587, beats: 1, label: 'レ',    sym: 'レ'   },
+  { freq: 784, beats: 4, label: 'ソ',    sym: 'ソ'   },
+  { freq: 698, beats: 3, label: 'ファ',  sym: 'ファ' },
+  { freq: 659, beats: 1, label: 'ミ',    sym: 'ミ'   },
+  { freq: 587, beats: 1, label: 'レ',    sym: 'レ'   },
+  { freq: 659, beats: 2, label: 'ミ',    sym: 'ミ'   },
+  { freq: 698, beats: 1, label: 'ファ',  sym: 'ファ' },
+  { freq: 659, beats: 1, label: 'ミ',    sym: 'ミ'   },
+  { freq: 587, beats: 2, label: 'レ',    sym: 'レ'   },
+  { freq: 523, beats: 4, label: 'ド',    sym: 'ド'   },
+];
+
+const FORMANTS = [
+  { f: 730,  q: 6,  gain: 1.0  },
+  { f: 1090, q: 8,  gain: 0.7  },
+  { f: 2440, q: 10, gain: 0.35 },
+];
+
+let ctx = null;
+let playing = false;
+let loopMode = false;
+let highlightTimers = [];
+let activeNodes = [];
+let stopTimer = null;
+
+function ensureCtx() {
+  if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+  return ctx;
+}
+
+function clearHighlights() {
+  highlightTimers.forEach(t => clearTimeout(t));
+  highlightTimers = [];
+  document.querySelectorAll('.cell').forEach(c => c.classList.remove('active'));
+}
+
+function stopAllNodes() {
+  activeNodes.forEach(n => { try { n.stop(); } catch (e) {} });
+  activeNodes = [];
+  if (stopTimer) { clearTimeout(stopTimer); stopTimer = null; }
+}
+
+function play() {
+  stop();
+  const c = ensureCtx();
+  if (c.state === 'suspended') c.resume();
+  playing = true;
+
+  const tempo = parseInt(document.getElementById('tempo').value, 10);
+  const vol = parseInt(document.getElementById('vol').value, 10) / 100;
+  const vibCents = parseInt(document.getElementById('vib').value, 10);
+  const beatSec = 60 / tempo / 2;
+  const peakBase = 0.18 * vol;
+
+  let t = c.currentTime + 0.05;
+  const startT = t;
+  let cumulMs = 0;
+
+  NOTES.forEach((note, idx) => {
+    const dur = beatSec * note.beats;
+    const peak = peakBase * 0.7;
+
+    // ローパス
+    const lp = c.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 3000;
+    lp.Q.value = 0.7;
+
+    // フォルマント並列
+    const formantSum = c.createGain();
+    formantSum.gain.value = 1.0;
+    FORMANTS.forEach(F => {
+      const bp = c.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = F.f;
+      bp.Q.value = F.q;
+      const fg = c.createGain();
+      fg.gain.value = F.gain;
+      lp.connect(bp); bp.connect(fg); fg.connect(formantSum);
+    });
+    const dry = c.createGain();
+    dry.gain.value = 0.35;
+    lp.connect(dry); dry.connect(formantSum);
+
+    // エンベロープ
+    const env = c.createGain();
+    env.gain.setValueAtTime(0.0001, t);
+    env.gain.linearRampToValueAtTime(peak, t + 0.05);
+    env.gain.setValueAtTime(peak, t + Math.max(0.05, dur * 0.7));
+    env.gain.exponentialRampToValueAtTime(0.0001, t + dur * 0.95);
+    formantSum.connect(env); env.connect(c.destination);
+
+    // ビブラート
+    const lfo = c.createOscillator();
+    lfo.type = 'sine';
+    lfo.frequency.value = 5.5;
+    const lfoGain = c.createGain();
+    lfoGain.gain.value = note.freq * (vibCents / 1740);
+    lfo.connect(lfoGain);
+
+    // 主オシレータ
+    const osc1 = c.createOscillator();
+    osc1.type = 'sawtooth';
+    osc1.frequency.value = note.freq;
+    lfoGain.connect(osc1.frequency);
+    const osc2 = c.createOscillator();
+    osc2.type = 'sawtooth';
+    osc2.frequency.value = note.freq;
+    osc2.detune.value = 6;
+    lfoGain.connect(osc2.frequency);
+
+    const mix = c.createGain();
+    mix.gain.value = 0.5;
+    osc1.connect(mix); osc2.connect(mix);
+    mix.connect(lp);
+
+    lfo.start(t); osc1.start(t); osc2.start(t);
+    lfo.stop(t + dur); osc1.stop(t + dur); osc2.stop(t + dur);
+    activeNodes.push(lfo, osc1, osc2);
+
+    // ハイライト
+    const startMs = cumulMs + 50;
+    const endMs = cumulMs + dur * 1000 + 50;
+    highlightTimers.push(setTimeout(() => {
+      document.querySelectorAll('.cell').forEach((el, i) => {
+        el.classList.toggle('active', i === idx);
+      });
+    }, startMs));
+    cumulMs += dur * 1000;
+    t += dur;
+  });
+
+  const totalMs = (t - startT) * 1000 + 100;
+  highlightTimers.push(setTimeout(() => {
+    document.querySelectorAll('.cell').forEach(el => el.classList.remove('active'));
+  }, totalMs));
+  stopTimer = setTimeout(() => {
+    playing = false;
+    if (loopMode) play();
+  }, totalMs + 400);
+}
+
+function stop() {
+  playing = false;
+  loopMode = false;
+  document.getElementById('loop').classList.remove('primary');
+  stopAllNodes();
+  clearHighlights();
+}
+
+function buildGrid() {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  NOTES.forEach((n, i) => {
+    const div = document.createElement('div');
+    div.className = 'cell';
+    div.innerHTML = `<div class="pitch">${n.sym}</div><div class="beats">${n.beats}拍</div>`;
+    grid.appendChild(div);
+  });
+}
+
+document.getElementById('play').addEventListener('click', () => { loopMode = false; document.getElementById('loop').classList.remove('primary'); play(); });
+document.getElementById('loop').addEventListener('click', (e) => {
+  loopMode = !loopMode;
+  e.target.classList.toggle('primary', loopMode);
+  if (loopMode && !playing) play();
+});
+document.getElementById('stop').addEventListener('click', stop);
+
+['tempo','vol','vib'].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener('input', () => {
+    document.getElementById(id + 'Val').textContent = el.value;
+  });
+});
+
+buildGrid();
+</script>
+</body>
+</html>
