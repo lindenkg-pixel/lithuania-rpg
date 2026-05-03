@@ -326,9 +326,9 @@
     // ダネ川を渡る橋
     m[3][9] = T.BRIDGE; m[4][9] = T.BRIDGE;
     // 港の桟橋（西の海に伸びる、Phase 3.5の魔女の丘行き出発点）
-    m[12][3] = T.BRIDGE; m[13][3] = T.BRIDGE;
+    m[13][3] = T.BRIDGE; m[13][2] = T.BRIDGE;
     // 桟橋の先に小舟（魔女の丘行き）
-    m[13][2] = T.BOAT;
+    m[13][1] = T.BOAT;
     // メインの東西通り（旧市街通り、Tiltų gatvė）
     for (let x = 4; x <= 28; x++) m[15][x] = T.ROAD;
     // 縦の道
@@ -338,7 +338,7 @@
     // 劇場（Teatro aikštė、TOWNHALL流用）— 真上1マスのみ壁
     m[10][14] = T.WALL;
     m[11][14] = T.TOWNHALL;
-    // 宿屋（みほさんノボテル・クライペダ）— 道（row 15）の北側に配置
+    // 宿屋（みほさんamiクライペダ）— 道（row 15）の北側に配置
     m[13][8]  = T.WALL;
     m[14][8]  = T.INN;
     // AKクワイア集会所（仮設）
@@ -405,7 +405,7 @@
     for (let y = 15; y <= 27; y++) m[y][16] = T.ROAD;
     for (let y = 15; y <= 25; y++) m[y][8]  = T.ROAD;
     for (let y = 15; y <= 25; y++) m[y][24] = T.ROAD;
-    // 宿屋（みほさんノボテル・トラカイ）— 西側
+    // 宿屋（みほさんamiトラカイ）— 西側
     m[17][10] = T.WALL;
     m[18][10] = T.INN;
     // AKクワイア集会所
@@ -573,7 +573,7 @@
     for (let y = 14; y <= 25; y++) m[y][24] = T.ROAD;
     // 十字架の丘の左の小広場（ヴィクトリアの居場所）
     for (let yy = 5; yy <= 7; yy++) for (let xx = 6; xx <= 8; xx++) m[yy][xx] = T.ROAD;
-    // 宿屋（みほさん・ノボテルシャウレイ）— 西
+    // 宿屋（みほさん・amiシャウレイ）— 西
     m[16][10] = T.WALL;
     m[17][10] = T.INN;
     // AKクワイア集会所
@@ -799,8 +799,8 @@
       { x: 15, y: 12, name: 'マリア',      kind: 'maria',   look: 'f6', hint: 'labas', stationary: true }, // 劇場前のヴィオラ奏者（入口を塞がないよう東隣に配置）
       { x: 19, y: 19, name: 'コトリーナ',  kind: 'kotryna', look: 'f5', hint: 'aciu',  stationary: true }, // 雑貨屋の前
       { x: 20, y: 20, name: 'ルツィア',    kind: 'rutsia',  look: 'f7', hint: 'labas' }, // コトリーナの娘4歳
-      { x: 4,  y: 13, name: '老漁師',      kind: 'fisher',  look: 'm2', hint: 'kaip',  stationary: true }, // 桟橋の漁師
-      { x: 5,  y: 12, name: '日本人船員',  kind: 'sailor',  look: 'm1', hint: null,    stationary: true }, // ダイナミック琉球5番目の解禁役
+      { x: 4,  y: 14, name: '老漁師',      kind: 'fisher',  look: 'm2', hint: 'kaip',  stationary: true }, // 桟橋の南側、入口近く
+      { x: 4,  y: 12, name: '日本人船員',  kind: 'sailor',  look: 'm1', hint: null,    stationary: true }, // 桟橋の北側、入口近く（ダイナミック琉球5番目の解禁役）
       { x: 24, y: 18, name: '港町の人',    kind: 'kl_citizen', look: 'm3', hint: 'aciu',
         quiz: {
           intro: [
@@ -821,7 +821,7 @@
             '港町の人：「Labai gerai! 上手だね。」',
             '「クライペダはね、ドイツ語だとメーメル（Memel）って呼ばれてた港町なんだ。」',
             '「歴史のある場所だよ。 劇場前のマリアの演奏は絶対聴いていきな。」',
-            '「あと、桟橋に変わった船員が来てるって噂だよ。 日本から来たんだとさ。」',
+            '「あと、桟橋の先の小舟── 誰も乗ってないのに、 ときどき男の歌声が漏れてくるって噂だよ。 怖いような、 ありがたいような…」',
           ],
         },
       },
@@ -3652,7 +3652,16 @@
     catch (e) {}
   }
 
+  function updateNewGameButtonLabels() {
+    const a = document.getElementById('btnA');
+    const b = document.getElementById('btnB');
+    const inName = state.scene === 'newgame' && state.titleStep && state.titleStep.startsWith('name');
+    if (a) a.textContent = inName ? 'けってい'  : 'A 決定';
+    if (b) b.textContent = inName ? '１文字けす' : 'B メニュー';
+  }
+
   function renderNewGameStep() {
+    updateNewGameButtonLabels();
     clear('#1a1a2a');
     ctx.fillStyle = '#dac030';
     ctx.font = 'bold 18px sans-serif';
@@ -3798,12 +3807,16 @@
           if (state.titleStep.startsWith('name')) {
             if (!state.tmp.names[idx]) { flashStatus('名前を入力してください'); return; }
             state.titleStep = 'look' + (idx + 1);
+            // カーソル(lookIdx)をこの人のデフォルト見た目に合わせ直す（前の人の位置を引き継がない）
+            state.tmp.lookIdx = PLAYER_LOOKS.findIndex(L => L.id === state.tmp.looks[idx]);
+            if (state.tmp.lookIdx < 0) state.tmp.lookIdx = 0;
             renderNewGameStep();
           } else {
             // look確定 → 次の人 or 確認画面
             if (idx < 2) {
               state.tmp.whoIdx++;
               state.titleStep = 'name' + (state.tmp.whoIdx + 1);
+              state.tmp.kanaR = 0; state.tmp.kanaC = 0;
             } else {
               state.titleStep = 'confirm';
             }
@@ -3831,6 +3844,7 @@
     resetFollowersToLeader();
     document.body.classList.remove('newgame-mode');
     state.scene = 'field';
+    updateNewGameButtonLabels();
     render(); // ニューゲーム画面（「みっつ目の見た目をえらぶ」表示など）をクリアしてマップを描画
     audio.playBGM('field');
     saveGame();
@@ -3962,7 +3976,7 @@
     },
     siauliai: {
       [T.INN]: {
-        name: 'ノボテル・シャウレイ',
+        name: 'amiシャウレイ',
         desc: 'みほさんが切り盛りする街の宿。\n窓からは十字架の丘の方角を望める。',
       },
       [T.AKHALL]: {
@@ -3992,7 +4006,7 @@
         desc: 'ガルヴェ湖に浮かぶ赤煉瓦の島城。\n14〜15世紀リトアニア大公国の中心地のひとつ。\n湖面に映る塔と橋が、童話のような風景を作る。',
       },
       [T.INN]: {
-        name: 'ノボテル・トラカイ',
+        name: 'amiトラカイ',
         desc: 'みほさんが切り盛りする湖畔の宿。\n窓を開ければ城と湖が一望できる特等席。',
       },
       [T.AKHALL]: {
@@ -7738,7 +7752,7 @@
               } else {
                 setDialog([
                   '老漁師：「海風はうそをつかん。きっとあんたの歌も遠くへ届くさ。」',
-                  '「桟橋の先に、たまに変わった船員が来る。日本から来たって言ってたな。」',
+                  '「桟橋の先の小舟── 風もないのに揺れる夜があってな。 海のほうから歌みたいな声が、 ぽつぽつ聞こえてくるんだ。」',
                 ]);
               }
             }
@@ -7790,7 +7804,7 @@
               '港町の人：「Labai gerai! 上手だね。」',
               '「クライペダはね、ドイツ語だとメーメル（Memel）って呼ばれてた港町なんだ。」',
               '「歴史のある場所だよ。劇場前のマリアの演奏は絶対聴いていきな。」',
-              '「あと、桟橋に変わった船員が来てるって噂だよ。日本から来たんだとさ。」',
+              '「あと、桟橋の先の小舟── 誰も乗ってないのに、 ときどき男の歌声が漏れてくるって噂だよ。 怖いような、 ありがたいような…」',
             ]);
           } else {
             setDialog(['港町の人：「うーん、なんて言ったの？」']);
@@ -8462,19 +8476,19 @@
       if (allSongs) {
         setDialog([
           'ギンターレ：「── 4曲、 全部取り戻したのね。」',
-          '「観衆はもう集まっている。 ステージへ上がれば、 始まる。」',
-          '「準備はできた？」',
-        ], null, ['ステージへ上がる', 'まだ会場を見る', 'ヴィリニュスへ戻る'], (i) => {
+          '「会場には、 あなたの旅で出会ったみんなが集まっているわ。」',
+          '「本番のステージへ上がる前に、 ひとことずつ話しておかなくて大丈夫？」',
+        ], null, ['会場に残る', 'ヴィリニュスへ戻る', 'ステージへ上がる'], (i) => {
           if (i === 0) {
-            startDainusvente();
+            setDialog(['ギンターレ：「焦らなくていい。 みんなと話して、 心が決まったら 私のところへ。」']);
           } else if (i === 1) {
-            setDialog(['ギンターレ：「焦らなくていい。 心が決まったら、 私のところへ。」']);
-          } else {
             setDialog(['（ヴィリニュス市街へ戻った── ）'], () => {
               state.flags._returnFromVingis = true;
               fadeCanvas(800, 1);
               setTimeout(() => { changeCity('vilnius'); fadeCanvas(800, 0); }, 900);
             });
+          } else {
+            startDainusvente();
           }
         });
         return;
@@ -8596,6 +8610,8 @@
           '「でもさ、ここまで4曲ぶんのピースを取り戻してきた君なら、もう大丈夫。」',
           `「${state.party[1].name}と${state.party[2].name}と一緒に、 君の歌を、君のまま届けてきな。」`,
           '「Vingisパークまでの道は、ギンターレが開けてくれるはず。 ぼくは会場で待ってるよ。」',
+          '「ギンターレ？ ヴィリニュス大聖堂の前あたりで見かけたような。」',
+          '「準備ができたら探しに行ってごらん。」',
         ]);
         return;
       }
@@ -8605,7 +8621,12 @@
         'あきちゃん：「えっ、歌詞をぜんぶ忘れちゃったのー！？」',
         '「まあ、本番までまだ少し時間がある。」',
         '「街を歩きまわって、がんばって思い出すんだ！」',
-        `「${state.party[1].name}と${state.party[2].name}も連れて行きなね。頼もしいから。」`,
+        `「${state.party[1].name}と${state.party[2].name}も連れて行きなね。頼りになるから。」`,
+        '「あ、そうだ。 旅の途中で歌の力を試される場面があったら── ぼくらの合言葉、 エホーマイ を思い出してね。」',
+        '「練習のはじまりに、 いつもみんなで手をつないで歌ってる、 あの祈りの歌だよ。」',
+        '「3人とも元気なときに唱えると、 そのあと3ターン、 歌の威力が2倍になるんだ。 ここぞって場面でね。」',
+        '「それと── もし誰かが感動の波にのまれて泣き崩れちゃったら、 励ます コマンドで現実に引き戻してあげて。」',
+        '「合唱はひとりじゃ成り立たない。 仲間を立て直すのも、 立派な役目だからね。」',
         '「街の人にはリト語のあいさつから話しかけよう：',
         '・Labas（ラバス）= こんにちは',
         '・Ačiū（アチュー）= ありがとう',
@@ -8620,23 +8641,23 @@
         setDialog([
           'みほさん：「あら、お疲れさま♪」',
           '「ふふ…『なんでみほさんがカウナスにも！？』って顔してるね？」',
-          '「実はね、私こう見えて 各地のノボテルにワープできちゃう の。」',
+          '「実はね、私こう見えて 各地のamiにワープできちゃう の。」',
           '「あきちゃんから『みんなを支えてあげて』って頼まれてるからね。」',
-          '「ここは ノボテル・カウナス。HPもMPも全回復するわよ。」',
+          '「ここは amiカウナス。HPもMPも全回復するわよ。」',
           '「冒険の記録もここで自動セーブだから、安心して寄ってちょうだい♪」',
         ]);
       } else if (state.cityKey === 'klaipeda') {
         setDialog([
           'みほさん：「ようこそクライペダへ♪」',
-          '「ここは ノボテル・クライペダ。窓を開けるとバルト海の潮の香りがするのよ。」',
+          '「ここは amiクライペダ。窓を開けるとバルト海の潮の香りがするのよ。」',
           '「マリアもコトリーナも、私の昔からの友達なの。」',
           '「困ったら遠慮なく頼ってね。HP/MP全回復＆セーブはいつもどおり♪」',
-          '「あ、桟橋のほうに日本人船員が来てるって聞いたわ。会いに行ってみたら？」',
+          '「桟橋の先の小舟── 誰も乗ってないのに、 ときどき不思議な歌声がするって噂よ。 ちょっと気になるわよね？」',
         ]);
       } else if (state.cityKey === 'trakai') {
         setDialog([
           'みほさん：「あら、トラカイにも来てくれたのね♪」',
-          '「ここは ノボテル・トラカイ。窓を開けるとガルヴェ湖と城が見えるの。」',
+          '「ここは amiトラカイ。窓を開けるとガルヴェ湖と城が見えるの。」',
           '「湖のほとりは空気が澄んでて、歌の練習にちょうどいいのよ。」',
           '「橋のほうに、湖を渡る橋を見てた精霊みたいな人がいる気がする…って噂よ？」',
           '「HP/MP全回復＆セーブはいつもどおり♪ ゆっくりしていってね。」',
@@ -8644,7 +8665,7 @@
       } else if (state.cityKey === 'siauliai') {
         setDialog([
           'みほさん：「ふふ、シャウレイにもちゃんと来てくれたのね♪」',
-          '「ここは ノボテル・シャウレイ。 北の風がちょっぴり冷たいでしょ？」',
+          '「ここは amiシャウレイ。 北の風がちょっぴり冷たいでしょ？」',
           '「窓の向こうに見える丘── あれが噂の十字架の丘よ。」',
           '「広場には街じゅう自慢の歌姫がいるって聞いたわ。 会いに行ってみたら？」',
           '「HP/MP全回復＆セーブはいつもどおり♪ ゆっくり休んでいってね。」',
@@ -8656,17 +8677,17 @@
           '「ダイヌシュベンテ、私もVingisパークで歌うの。 一緒のステージよ。」',
           '「3万人の声が重なる瞬間って、ほんとうに鳥肌もので…」',
           '「みんなと一緒に歌えるの、ほんっとに楽しみにしてるんだから♪」',
-          '「本番までは いつもどおり ノボテルホテル で支えるわ。 HP/MP全回復＆セーブもね。」',
+          '「本番までは いつもどおり amiホテル で支えるわ。 HP/MP全回復＆セーブもね。」',
         ]);
       } else {
         setDialog([
           'みほさん：「あら、いらっしゃい！」',
-          '「ここは私の宿屋、ノボテルホテルよ。」',
+          '「ここは私の宿屋、amiホテルよ。」',
           '「HPもMPも全回復するから、いつでも寄ってね。」',
           '「冒険の記録もここで自動セーブしておくから安心してね。」',
           '「（宿屋の入口（赤屋根のベッド看板）でAボタンで休める）」',
           '「あ、それと…私、ちょっとした特技があってね。」',
-          '「他の街のノボテルにもひょいっと現れるから、見かけても驚かないでね♪」',
+          '「他の街のamiにもひょいっと現れるから、見かけても驚かないでね♪」',
         ]);
       }
       return;
@@ -8986,12 +9007,12 @@
       return true;
     }
     if (t === T.INN) {
-      // みほさん宿屋（各地のノボテル）— 入室時はBGM切替なし
+      // みほさん宿屋（各地のami）— 入室時はBGM切替なし
       const innName =
-        state.cityKey === 'kaunas'   ? 'ノボテル・カウナス'   :
-        state.cityKey === 'klaipeda' ? 'ノボテル・クライペダ' :
-        state.cityKey === 'trakai'   ? 'ノボテル・トラカイ'   :
-                                       'ノボテル・ヴィリニュス';
+        state.cityKey === 'kaunas'   ? 'amiカウナス'   :
+        state.cityKey === 'klaipeda' ? 'amiクライペダ' :
+        state.cityKey === 'trakai'   ? 'amiトラカイ'   :
+                                       'amiヴィリニュス';
       // 宿泊料：全都市一律 €40
       const innFee = 40;
       const innGreet =
@@ -9646,22 +9667,41 @@
     }
 
     // Phase 3: 3人だけステージへ。リーダー (16,6) → (16,3)、F1 (15,3)、F2 (17,3)
+    // 縦列のまま3歩登った後、2段階で横一列に展開する（asymmetric な dy=-2 を避ける）。
     function partyClimbStage(callback) {
       // 縦列のまま3歩上に登る
       stepPartyOnly(0, -1, () => {            // P(16,5) F1(16,6) F2(16,7)
         stepPartyOnly(0, -1, () => {          // P(16,4) F1(16,5) F2(16,6)
           stepPartyOnly(0, -1, () => {        // P(16,3) F1(16,4) F2(16,5)
-            // 横一列に展開（F1左、F2右）
-            const SPREAD_DUR = 450;
-            const t0 = performance.now();
-            f1.move = { dx: -1, dy: -1, t0, dur: SPREAD_DUR }; f1.dir = 'up';
-            f2.move = { dx: 1,  dy: -2, t0, dur: SPREAD_DUR }; f2.dir = 'up';
+            const SUB_DUR = 260;
+            // Sub-step A: F1 (16,4)→(15,4), F2 (16,5)→(16,4)
+            //   → P(16,3), F1(15,4), F2(16,4)
+            const t0a = performance.now();
+            f1.move = { dx: -1, dy:  0, t0: t0a, dur: SUB_DUR }; f1.dir = 'left';
+            f2.move = { dx:  0, dy: -1, t0: t0a, dur: SUB_DUR }; f2.dir = 'up';
             setTimeout(() => {
-              f1.x = 15; f1.y = 3; f1.move = null;
-              f2.x = 17; f2.y = 3; f2.move = null;
-              audio.playSE('step');
-              callback();
-            }, SPREAD_DUR);
+              // 念のため state.followers から取り直して最終位置を強制（参照ずれ対策）
+              const ff1 = state.followers && state.followers[0];
+              const ff2 = state.followers && state.followers[1];
+              if (ff1) { ff1.x = 15; ff1.y = 4; ff1.move = null; ff1.dir = 'up'; }
+              if (ff2) { ff2.x = 16; ff2.y = 4; ff2.move = null; ff2.dir = 'up'; }
+              // Sub-step B: F1 (15,4)→(15,3), F2 (16,4)→(17,3)
+              //   → P(16,3), F1(15,3), F2(17,3) — 横一列完成
+              const t0b = performance.now();
+              if (ff1) ff1.move = { dx: 0,  dy: -1, t0: t0b, dur: SUB_DUR };
+              if (ff2) ff2.move = { dx: 1,  dy: -1, t0: t0b, dur: SUB_DUR };
+              setTimeout(() => {
+                // 最終スナップ：取り直したうえで明示的に座標を固定
+                state.px = 16; state.py = 3; state.move = null; state.pdir = 'up';
+                const g1 = state.followers && state.followers[0];
+                const g2 = state.followers && state.followers[1];
+                if (g1) { g1.x = 15; g1.y = 3; g1.move = null; g1.dir = 'up'; }
+                if (g2) { g2.x = 17; g2.y = 3; g2.move = null; g2.dir = 'up'; }
+                audio.playSE('step');
+                renderField();
+                callback();
+              }, SUB_DUR);
+            }, SUB_DUR);
           });
         });
       });
@@ -10363,14 +10403,14 @@
     const sibStr = sib();
     setDialog([
       '── 舞台袖から、 リトアニアの友人たちが、 一人、 また一人と集まってくる。',
-      'マンタス：「やられたよ！ 黒パン届けてくれた頃から、 ぼくは本気で君たちのファンだったんだ！」',
+      'マンタス：「やられたよ！ ぼくの店の客も、 街じゅうのみんなも、 君たちの歌にぜんぶ持っていかれたよ！」',
       'イエヴァ：「あなたたちの故郷の歌── ほんとうに素敵だった。 あとでうちのレストランに来てね、 ご馳走するから。」',
       'エレナ：「ピアノで合わせたかったわ。 でも、 あなたたち3人で十分だった。」',
       'マリウス：「‥‥うん。 よかった。 心から、 そう思う。」',
       'マリア：「ヴィオラじゃ、 あの感動は出せない。 歌って、 すごい。」',
       'コトリーナ：「あの紙切れ、 渡せて本当によかった。 子どもたちの宝物が、 ちゃんと届いた気がする。」',
-      `ルツィア：「${sibStr}！ ルーちゃんの えのうた、 ちゃんと うたえた？」`,
-      'ヴィクトリア：「── 認めるわ。 今日のあなたたちは、 私より、 ずっと良い歌だった。」',
+      `ルツィア：「${sibStr}！ ルーちゃんね、 おうたきいて、 むねが ぽかぽかしたの〜！」`,
+      'ヴィクトリア：「── 認めるわ。 今日のあなたたちは、 私より、 ずっと良い歌い手だった。」',
       'ユウコヤマサキ：「カンクレスを取り戻してくれたあなたたちが、 こうして歌い上げる── 本当に、 嬉しいです。」',
       'ギンターレ：「あの夜、 私が見たのは── リトアニアの未来。 ありがとう。」',
     ], playEndingSceneC);
@@ -10518,9 +10558,11 @@
               <div style="font-size:12px;color:#aaa;">A を押してタイトルに戻る</div>
             </div>
           `;
+          const btnAEl = document.getElementById('btnA');
           const finish = () => {
             window.removeEventListener('keydown', onFinKey);
             overlay.removeEventListener('click', finish);
+            if (btnAEl) btnAEl.removeEventListener('click', finish);
             overlay.remove();
             fadeCanvas(0, 0);
             // ダイヌシュベンテ達成セーブを残したままタイトルに戻す
@@ -10530,10 +10572,12 @@
             showTitleMenu();
           };
           const onFinKey = (e) => {
-            if (e.key === 'Enter' || e.key === ' ' || e.key === 'z' || e.key === 'Z') finish();
+            if (e.key === 'Enter' || e.key === ' ' || e.key === 'z' || e.key === 'Z' ||
+                e.key === 'a' || e.key === 'A') finish();
           };
           window.addEventListener('keydown', onFinKey);
           overlay.addEventListener('click', finish);
+          if (btnAEl) btnAEl.addEventListener('click', finish);
         }, 1200);
       }
     });
@@ -10820,7 +10864,14 @@
     if (state.scene === 'newgame') {
       audio.ensureCtx();
       audio.playSE('decide');
-      dispatchSyntheticKey('Enter');
+      // 名前入力中は「名前を決定」（緑のけっていボタンと同じ）。
+      // 見た目選択・確認は従来どおりカーソル位置の決定（Enter）。
+      if (state.titleStep && state.titleStep.startsWith('name')) {
+        const ok = document.querySelector('#dialog [data-act="ok"]');
+        if (ok) ok.click(); else dispatchSyntheticKey('Enter');
+      } else {
+        dispatchSyntheticKey('Enter');
+      }
       return;
     }
     if (state.scene === 'title') return; // タイトルはダイアログ内ボタンで進める
@@ -10921,6 +10972,9 @@
       ev.preventDefault();
       _heldDirs.add(d);
       if (state.scene === 'newgame') {
+        // 名前入力中はオンスクリーン十字キーを無効化（ひらがなパネルの直接タップで入力する）。
+        // 見た目選択（look）・確認（confirm）では十字キーで選択するので従来通り通す。
+        if (state.titleStep && state.titleStep.startsWith('name')) return;
         audio.ensureCtx();
         dispatchSyntheticKey(DIR_TO_KEY[d]);
         return;
