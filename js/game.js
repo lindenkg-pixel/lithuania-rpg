@@ -56,7 +56,7 @@
     vilnius:  { name: 'ヴィリニュス', realX: 0.74, realY: 0.69, color: '#dac030' },
     kaunas:   { name: 'カウナス',     realX: 0.50, realY: 0.62, color: '#3aae5a' },
     klaipeda: { name: 'クライペダ',   realX: 0.06, realY: 0.34, color: '#3a8acc' },
-    trakai:   { name: 'トラカイ',     realX: 0.68, realY: 0.71, color: '#c83030' },
+    trakai:   { name: 'トラカイ',     realX: 0.68, realY: 0.71, color: '#c83030', labelBelow: true },
     siauliai: { name: 'シャウレイ',   realX: 0.40, realY: 0.27, color: '#aa70d0' },
     vingis:   { name: 'Vingisパーク', realX: 0.71, realY: 0.69, color: '#f0c040' },
   };
@@ -79,8 +79,20 @@
     { id:'f6', sex:'f', name:'娘（ロング黒）', skin:'#f8d8aa', hair:'#2a1a1a', cloth:'#7a3aae', longHair:true },
     { id:'f7', sex:'f', name:'娘（ポニー）', skin:'#f8d8aa', hair:'#8a5a3a', cloth:'#3a4abe', ponytail:true },
     { id:'f8', sex:'f', name:'娘（眼鏡）',   skin:'#f8d8aa', hair:'#3a2a1a', cloth:'#3a8a6a', glasses:true },
+    // キーパーソン専用（NPC固定・主人公選択不可）
+    { id:'ciurlionis', sex:'m', name:'チョルリョーニス', skin:'#f0c89a', hair:'#1a1a1a', cloth:'#f0f0e8', beard:true, bowtie:true, suit:true },
+    { id:'yamasaki',   sex:'f', name:'ユウコヤマサキ',   skin:'#f8d8aa', hair:'#1a1015', cloth:'#aa3030', longHair:true, kimono:true },
+    { id:'victoria',   sex:'f', name:'ヴィクトリア',     skin:'#f8d8aa', hair:'#e8c050', cloth:'#f8f0e0', longHair:true, dress:true },
+    { id:'gintere',    sex:'f', name:'ギンターレ',       skin:'#f0c8a0', hair:'#a8a0a0', cloth:'#4a1838', longHair:true, dress:true },
   ];
   const lookById = (id) => LOOKS.find(l => l.id === id) || LOOKS[0];
+  // プレイヤー選択可能なlook（キーパーソン専用は除外）
+  const PLAYER_LOOKS = LOOKS.filter(l => /^[mf]\d+$/.test(l.id));
+  // 表示用ラベル（m1 → 男1、f3 → 女3）
+  const lookLabel = (id) => {
+    const m = String(id || '').match(/^([mf])(\d+)$/);
+    return m ? ((m[1] === 'm' ? '男' : '女') + m[2]) : String(id || '');
+  };
   // 主人公の見た目（性別）に応じた呼称（年下のNPCが主人公を呼ぶときに使う）
   const sib = () => (lookById(state.party[0].look).sex === 'f' ? 'おねえちゃん' : 'おにいちゃん');
 
@@ -444,15 +456,37 @@
       // 漁師（橋のたもと — Mano kraštas 4個目）
       { x: 18, y: 16, name: 'トラカイの漁師', kind: 'tr_fisher', look: 'm1', hint: 'kaip',  stationary: true },
       // カライム民族の女性（民家の隣、道沿い）
-      { x: 24, y: 22, name: 'カライム女性', kind: 'tr_karaim', look: 'f6', hint: 'labas', stationary: true },
+      { x: 24, y: 22, name: 'カライム女性', kind: 'tr_karaim', look: 'f6', hint: 'labas', stationary: true,
+        quiz: {
+          intro: [
+            'カライム女性：「Labas. 私はカライムの民の末裔よ。」',
+            '東欧でも珍しい民族。 トラカイには600年以上前から暮らしている。',
+            '「うちの店のキビナイは、本場のカライム風よ。 ぜひ食べていってね。」',
+          ],
+          teach: [
+            'カライム女性：「お客さんに『これでいい？』って訊かれた時── リト語ではこう答えるの。」',
+            '「『Gerai』── "いいよ"、"OK"、"問題ない"。 一言で軽く返せる便利な言葉よ。」',
+          ],
+          question: 'カライム女性：「── じゃあ最後にひとつ。 リト語で『いいよ／OK』は？」',
+          choices: ['Gerai', 'Ne', 'Atsiprašau'],
+          correct: 0,
+          wrongMsg: 'うーん、それだと話が止まっちゃうわねぇ。',
+          learnedFlag: 'lt_gerai',
+          correctLines: [
+            'カライム女性：「Gerai! さすが旅の人ね。」',
+            '「カライムの言葉とリト語、似ているところもあれば全然違うところもある── でも"Gerai"は両方で通じるの。」',
+            '「キビナイ、温かいうちに食べていって。 湖を渡る前の腹ごしらえに、ぴったりよ。」',
+          ],
+        },
+      },
       // 街の少女
       { x: 12, y: 20, name: '街の少女',     kind: 'tr_kid',    look: 'f3', hint: 'kaip' },
       // 駅員
-      { x: 16, y: 26, name: '駅員',         kind: 'station_tr', look: 'm2', hint: null,  stationary: true },
+      { x: 16, y: 25, name: '駅員',         kind: 'station_tr', look: 'm2', hint: null,  stationary: true },
     ];
     // チョルリョーニス精霊（橋の途中、湖上演出）— 1度話したら消える
     if (!(state.flags && state.flags.spirit_trakai_seen)) {
-      list.push({ x: 16, y: 12, name: 'チョルリョーニス', kind: 'spirit_trakai', look: 'm4', hint: null, stationary: true });
+      list.push({ x: 16, y: 12, name: 'チョルリョーニス', kind: 'spirit_trakai', look: 'ciurlionis', hint: null, stationary: true });
     }
     return list;
   }
@@ -505,7 +539,7 @@
   function witchesNPCs() {
     return [
       // チョルリョーニス精霊（中央聖域）
-      { x: 16, y: 14, name: 'チョルリョーニス', kind: 'spirit_witches', look: 'm4', hint: null, stationary: true },
+      { x: 16, y: 14, name: 'チョルリョーニス', kind: 'spirit_witches', look: 'ciurlionis', hint: null, stationary: true },
       // 散歩中の老女（彫刻の解説役）
       { x: 14, y: 20, name: '森の老女', kind: 'witches_elder', look: 'f6', hint: null, stationary: true },
     ];
@@ -586,17 +620,41 @@
       // みほさん（宿屋の西隣）
       { x: 9,  y: 18, name: 'みほさん',   kind: 'miho',         look: 'f5', hint: null,    stationary: true },
       // ヴィクトリア（十字架の丘の左、開けた小広場）
-      { x: 7,  y: 6,  name: 'ヴィクトリア', kind: 'victoria',    look: 'f6', hint: null,    stationary: true },
+      { x: 7,  y: 6,  name: 'ヴィクトリア', kind: 'victoria',    look: 'victoria', hint: null,    stationary: true },
       // 巡礼者（十字架の丘）— Kur giria 1個目
       { x: 17, y: 8,  name: '巡礼者',     kind: 'sl_pilgrim',   look: 'm2', hint: 'aciu',  stationary: true },
       // 街の老婦人（広場 — Kur giria 2個目）
-      { x: 18, y: 18, name: '街の老婦人', kind: 'sl_elder',     look: 'f6', hint: 'kaip',  stationary: true },
+      { x: 18, y: 18, name: '街の老婦人', kind: 'sl_elder',     look: 'f6', hint: 'kaip',  stationary: true,
+        quiz: {
+          intro: [
+            '街の老婦人：「Labas vakaras… ここは静かでいいでしょう。」',
+            '広場のベンチで、編み物の手を止めて旅人を見上げる女性。',
+            '「私はね、若い頃にこの街の合唱団で歌っていたの。 今でも家事の合間に口ずさんでいるのよ。」',
+          ],
+          teach: [
+            '街の老婦人：「旅人さん、お茶でも淹れましょうか── そういう時はね、リト語で『Prašau』と言うのよ。」',
+            '「"どうぞ"とも"お願いします"とも訳せる、 やさしい言葉。 覚えておきなさいな。」',
+          ],
+          question: '街の老婦人：「── ではひとつ。 リト語で『どうぞ』は？」',
+          choices: ['Prašau', 'Ačiū', 'Iki!'],
+          correct: 0,
+          wrongMsg: 'ふふ、それじゃ"どうぞ"にはならないわねぇ。',
+          learnedFlag: 'lt_prasau',
+          correctLines: [
+            '街の老婦人：「Puikiai. やさしい発音ね。」',
+            '「十字架の丘はね、誰かを思って釘を打つ場所なの。 願いと祈りが、長い年月で森になっていったのよ。」',
+            '「歌もそう。 ひとりひとりの声が積み重なって、街そのものが歌い出すの。」',
+            '「丘の上のヴィクトリアに会ってきなさい。 街じゅうの自慢の歌姫よ。」',
+            '「それから、北のレストランの黒パン── あれは蜂蜜酒に合うの。 旅のお土産にぜひね。」',
+          ],
+        },
+      },
       // 駅員
-      { x: 16, y: 26, name: '駅員',       kind: 'station_sl',   look: 'm2', hint: null,    stationary: true },
+      { x: 16, y: 25, name: '駅員',       kind: 'station_sl',   look: 'm2', hint: null,    stationary: true },
     ];
     // チョルリョーニス精霊（十字架の丘の頂上）— ヴィクトリア対決後に出現、1度話したら消える
     if (state.flags && state.flags.victoria_done && !(state.flags && state.flags.spirit_siauliai_seen)) {
-      list.push({ x: 16, y: 6, name: 'チョルリョーニス', kind: 'spirit_siauliai', look: 'm4', hint: null, stationary: true });
+      list.push({ x: 16, y: 6, name: 'チョルリョーニス', kind: 'spirit_siauliai', look: 'ciurlionis', hint: null, stationary: true });
     }
     return list;
   }
@@ -637,9 +695,9 @@
     // 夫婦・母子は隣接、それ以外は左右に振り分け。中央花道 x=16 は通行用に空ける
     return [
       // 南入口の帰還案内
-      { x: 16, y: 26, name: 'ギンターレ', kind: 'gintere_v', look: 'f6', hint: null, stationary: true },
+      { x: 16, y: 26, name: 'ギンターレ', kind: 'gintere_v', look: 'gintere', hint: null, stationary: true },
       // ステージ最前(y=5)：あきちゃん＆みほさん夫婦（AKクワイア主催）
-      { x: 14, y: 5,  name: 'あきちゃん',     kind: 'akihiro_vp',  look: 'm3', hint: null,    stationary: true },
+      { x: 14, y: 5,  name: 'あきちゃん',     kind: 'akihiro_vp',  look: 'm4', hint: null,    stationary: true },
       { x: 15, y: 5,  name: 'みほさん',       kind: 'miho_vp',     look: 'f5', hint: null,    stationary: true },
       // ステージ前(y=6)：両端に夫婦ペア
       { x: 8,  y: 6,  name: 'マンタス',       kind: 'mantas_vp',   look: 'm4', hint: 'aciu',  stationary: true },
@@ -668,30 +726,58 @@
   function vilniusNPCs() {
     const f = (state && state.flags) || {};
     const list = [
-      { x: 7,  y: 18, name: 'あきちゃん',  kind: 'akihiro', look: 'm3', hint: null, stationary: true }, // AKクワイア集会所(6,18)の東隣に固定
+      { x: 7,  y: 18, name: 'あきちゃん',  kind: 'akihiro', look: 'm4', hint: null, stationary: true }, // AKクワイア集会所(6,18)の東隣に固定
       { x: 11, y: 18, name: 'みほさん',    kind: 'miho',    look: 'f5', hint: null, stationary: true },
       { x: 18, y: 12, name: 'マンタス',    kind: 'mantas',  look: 'm4', hint: 'aciu', stationary: true }, // レストラン(17,12)の東隣。後半ユウコ(16,14)と通路が被らないように
       { x: 24, y: 8,  name: 'イエヴァ',    kind: 'ieva',    look: 'f1', hint: 'kaip'  },
-      { x: 12, y: 9,  name: '司祭',        kind: 'priest',  look: 'm2', hint: 'labas' },
+      { x: 12, y: 9,  name: '司祭',        kind: 'priest',  look: 'm2',
+        quiz: {
+          intro: ['司祭：「Sveiki, keliautojau. ようこそ、旅人よ。」'],
+          teach: [
+            '司祭：「祈りの中ではよく『Taip』と返事をする── これは"はい"を意味する短い言葉だ。」',
+            '司祭：「短く、しかし重い。覚えておくとよい。」',
+          ],
+          question: '司祭：「── ではひとつ訊こう。リト語で『はい』はなんと言う？」',
+          choices: ['Taip', 'Ne', 'Gerai'],
+          correct: 0,
+          wrongMsg: 'うむ、それは違うようだ…',
+          learnedFlag: 'lt_taip',
+        },
+      },
       { x: 8,  y: 13, name: '雑貨屋',      kind: 'shop',    look: 'f3', hint: 'aciu'  },
       { x: 18, y: 19, name: '吟遊詩人',    kind: 'bard',    look: 'm3', hint: 'kaip'  },
       { x: 14, y: 21, name: '子ども',      kind: 'child',   look: 'f7', hint: 'labas' },
-      { x: 23, y: 19, name: 'おばあさん',  kind: 'elder',   look: 'f6', hint: 'aciu'  },
+      { x: 23, y: 19, name: 'おばあさん',  kind: 'elder',   look: 'f6',
+        quiz: {
+          intro: ['おばあさん：「Labas, jaunime. ふぅ、若い人は元気じゃのぅ。」'],
+          teach: [
+            'おばあさん：「リト語で別れ際にひとこと、『Iki!』── "またね"、というのよ。」',
+            'おばあさん：「短いけれど、温かい挨拶。覚えておきなさいな。」',
+          ],
+          question: 'おばあさん：「── じゃあ別れ際にひとこと。リト語で『またね』は？」',
+          choices: ['Iki!', 'Labas!', 'Ačiū!'],
+          correct: 0,
+          wrongMsg: 'うふふ、それじゃ別れの挨拶にならんわ…',
+          learnedFlag: 'lt_iki',
+        },
+      },
       { x: 16, y: 7,  name: '塔の番人',    kind: 'guardian', look: 'm2', hint: null, stationary: true },
       // 駅員（ヴィリニュス駅、切符配布役）
       { x: 21, y: 28, name: '駅員',       kind: 'station_v', look: 'm2', hint: null, stationary: true },
     ];
     // ヴィリニュス再訪（Phase 6）：
     //  - ピリエス通り入口にユウコヤマサキ（着物のカンクレス奏者）
-    //  - AKクワイア集会所前にルツィア（家族でダイヌシュベンテ観覧に来ている）
+    //  - AKクワイア集会所前にルツィア（おつかいクエストB＝クヴァス配達完了後に家族で来訪）
     if (f.vilnius_revisit) {
-      list.push({ x: 16, y: 14, name: 'ユウコヤマサキ', kind: 'yamasaki', look: 'f2', hint: null, stationary: true });
-      list.push({ x: 7,  y: 19, name: 'ルツィア',       kind: 'rutsia_v', look: 'f7', hint: 'labas', stationary: true });
+      list.push({ x: 16, y: 14, name: 'ユウコヤマサキ', kind: 'yamasaki', look: 'yamasaki', hint: null, stationary: true });
+      if (f.fq_kvas_done) {
+        list.push({ x: 7,  y: 19, name: 'ルツィア',       kind: 'rutsia_v', look: 'f7', hint: 'labas', stationary: true });
+      }
     }
     // Phase 7：Kur giria 5/5 達成 → ギンターレ登場（Vingisパークへの送り出し役）
     const kurCount = (state && state.piecesBySong && state.piecesBySong.kur) || 0;
     if (kurCount >= 5) {
-      list.push({ x: 12, y: 11, name: 'ギンターレ', kind: 'gintere', look: 'f6', hint: null, stationary: true });
+      list.push({ x: 12, y: 11, name: 'ギンターレ', kind: 'gintere', look: 'gintere', hint: null, stationary: true });
     }
     return list;
   }
@@ -703,7 +789,7 @@
       { x: 20, y: 16, name: 'マリウス',    kind: 'marius',  look: 'm3', hint: 'aciu',  stationary: true },
       { x: 8,  y: 18, name: 'カウナスの老人', kind: 'citizen', look: 'm1', hint: 'labas' },
       { x: 24, y: 18, name: '少年',        kind: 'kid_k',   look: 'm2', hint: 'kaip' },
-      { x: 22, y: 26, name: '駅員',        kind: 'station_k', look: 'm2', hint: null, stationary: true },
+      { x: 21, y: 26, name: '駅員',        kind: 'station_k', look: 'm2', hint: null, stationary: true },
     ];
   }
 
@@ -715,8 +801,31 @@
       { x: 20, y: 20, name: 'ルツィア',    kind: 'rutsia',  look: 'f7', hint: 'labas' }, // コトリーナの娘4歳
       { x: 4,  y: 13, name: '老漁師',      kind: 'fisher',  look: 'm2', hint: 'kaip',  stationary: true }, // 桟橋の漁師
       { x: 5,  y: 12, name: '日本人船員',  kind: 'sailor',  look: 'm1', hint: null,    stationary: true }, // ダイナミック琉球5番目の解禁役
-      { x: 24, y: 18, name: '港町の人',    kind: 'kl_citizen', look: 'm3', hint: 'aciu' },
-      { x: 22, y: 26, name: '駅員',        kind: 'station_kl', look: 'm2', hint: null, stationary: true },
+      { x: 24, y: 18, name: '港町の人',    kind: 'kl_citizen', look: 'm3', hint: 'aciu',
+        quiz: {
+          intro: [
+            '港町の人：「Labas! クライペダは初めて？」',
+            '潮焼けした肌に、人懐っこい笑顔。',
+            '「ここは港町だからね。 観光客と漁師と荷揚げ人で、いつも誰かに肩がぶつかるんだ。」',
+          ],
+          teach: [
+            '港町の人：「そんな時にひと言。 リト語で『Atsiprašau!』── "ごめん、ちょっと失礼"って意味さ。」',
+            '「短い言葉だけど、これひとつで街の空気が柔らかくなるんだ。」',
+          ],
+          question: '港町の人：「── じゃあ訊くよ。 リト語で『すみません』は何だっけ？」',
+          choices: ['Atsiprašau!', 'Ačiū!', 'Sveiki!'],
+          correct: 0,
+          wrongMsg: 'うーん、 なんて言ったの？',
+          learnedFlag: 'lt_atsiprasau',
+          correctLines: [
+            '港町の人：「Labai gerai! 上手だね。」',
+            '「クライペダはね、ドイツ語だとメーメル（Memel）って呼ばれてた港町なんだ。」',
+            '「歴史のある場所だよ。 劇場前のマリアの演奏は絶対聴いていきな。」',
+            '「あと、桟橋に変わった船員が来てるって噂だよ。 日本から来たんだとさ。」',
+          ],
+        },
+      },
+      { x: 21, y: 26, name: '駅員',        kind: 'station_kl', look: 'm2', hint: null, stationary: true },
     ];
   }
 
@@ -2189,6 +2298,28 @@
       c.fillRect(sx + 22, sy + 17, 2, 2);
     }
 
+    // ============ ヒゲ（チョルリョーニス用） ============
+    if (L.beard && dir !== 'up') {
+      // ヒゲは髪色をやや濃くしたものを使う（白髪のときは銀色のヒゲ、黒髪のときは濃いヒゲ）
+      const bd = darken(L.hair, 0.78);
+      if (dir === 'down') {
+        // 口下〜あごのフルベアード
+        r(13, 19, 6, 1, bd);
+        r(12, 20, 8, 2, bd);
+        r(11, 21, 10, 1, bd);
+        // 口を覆う
+        r(15, 18, 2, 1, bd);
+      } else if (dir === 'left') {
+        r(11, 19, 5, 1, bd);
+        r(10, 20, 6, 2, bd);
+        r(11, 18, 2, 1, bd);
+      } else if (dir === 'right') {
+        r(16, 19, 5, 1, bd);
+        r(16, 20, 6, 2, bd);
+        r(19, 18, 2, 1, bd);
+      }
+    }
+
     // ============ 眼鏡 ============
     if (L.glasses && dir === 'down') {
       r(9,  13, 5, 1, O); r(9,  17, 5, 1, O);
@@ -2307,6 +2438,108 @@
     r(16, 47, 1, 1, O); r(21, 47, 1, 1, O);
     r(17, 46, 4, 1, boot);
     r(17, 47, 4, 1, bootH);
+
+    // ============ 蝶ネクタイ（チョルリョーニス用） ============
+    if (L.bowtie && dir !== 'up') {
+      // スーツが明るい色のときは濃紺、暗い色のときは黒で目立たせる
+      const bw = '#3a2a5a';
+      const bwH = '#6a5a8a';
+      if (dir === 'down') {
+        r(13, 25, 6, 3, bw);
+        r(15, 25, 2, 3, bwH); // 中央結び目（ややハイライト）
+        r(14, 26, 4, 1, bwH);
+      } else if (dir === 'left') {
+        r(11, 25, 4, 3, bw);
+        r(13, 26, 1, 1, bwH);
+      } else if (dir === 'right') {
+        r(17, 25, 4, 3, bw);
+        r(18, 26, 1, 1, bwH);
+      }
+    }
+
+    // ============ 着物（ユウコヤマサキ用：襟を交差・帯） ============
+    if (L.kimono && dir !== 'up') {
+      const kim = L.cloth;        // 着物地（赤系）
+      const kimD = darken(kim, 0.55);
+      const obi = '#dac030';      // 帯（金色）
+      const obiD = darken(obi, 0.55);
+      const inner = '#fff8e0';    // 白い襦袢
+      // 上半身を着物色で塗り直す（ジャケットを上書き）
+      r(7, 25, 18, 13, kim);
+      r(7, 25, 18, 1, kimD);
+      r(7, 37, 18, 1, kimD);
+      r(7, 25, 1, 13, kimD); r(24, 25, 1, 13, kimD);
+      if (dir === 'down') {
+        // 襟（左前を上に重ねる：右側が上）
+        r(13, 25, 1, 6, inner);
+        r(14, 26, 1, 5, inner);
+        r(15, 27, 1, 4, inner);
+        r(16, 28, 1, 3, inner);
+        r(17, 29, 1, 2, inner);
+        r(18, 30, 1, 1, inner);
+        // 襟の縁取り
+        r(12, 25, 1, 7, kimD);
+        r(13, 26, 1, 1, kimD); r(14, 27, 1, 1, kimD);
+        r(15, 28, 1, 1, kimD); r(16, 29, 1, 1, kimD);
+        r(17, 30, 1, 1, kimD); r(18, 31, 1, 1, kimD);
+      } else if (dir === 'left') {
+        r(11, 25, 1, 6, inner);
+        r(12, 26, 1, 5, inner);
+        r(13, 27, 1, 4, inner);
+      } else if (dir === 'right') {
+        r(20, 25, 1, 6, inner);
+        r(19, 26, 1, 5, inner);
+        r(18, 27, 1, 4, inner);
+      }
+      // 帯（広め）
+      r(7, 33, 18, 5, obi);
+      r(7, 33, 18, 1, obiD);
+      r(7, 37, 18, 1, obiD);
+      // スカート部分（着物の裾が脚を覆う）
+      r(11, 41, 10, 5, kim);
+      r(11, 41, 1, 5, kimD); r(20, 41, 1, 5, kimD);
+      r(11, 45, 10, 1, kimD);
+      // 草履（黒鼻緒）
+      r(11, 46, 4, 1, '#2a1810'); r(11, 47, 4, 1, '#1a0a08');
+      r(17, 46, 4, 1, '#2a1810'); r(17, 47, 4, 1, '#1a0a08');
+    }
+
+    // ============ ドレス（ヴィクトリア=白／ギンターレ=深色：L.cloth から色を取る） ============
+    if (L.dress && dir !== 'up') {
+      const dr = L.cloth || '#f8f0e0';
+      const drD = darken(dr, 0.78);
+      const drH = lighten(dr, 1.12);
+      const trim = '#dac030';      // 金縁
+      // 上半身を白で塗り直す
+      r(7, 25, 18, 13, dr);
+      r(7, 25, 18, 1, drD);
+      r(7, 37, 18, 1, drD);
+      r(7, 25, 1, 13, drD); r(24, 25, 1, 13, drH);
+      if (dir === 'down') {
+        // 胸元V字（深め）
+        r(13, 25, 6, 1, O);
+        r(13, 26, 1, 4, O); r(18, 26, 1, 4, O);
+        r(14, 26, 4, 4, skin);
+        r(14, 30, 1, 1, O); r(17, 30, 1, 1, O);
+        r(15, 30, 2, 1, skin);
+        r(15, 31, 2, 1, O);
+        // 金の細い装飾線（ウエスト）
+        r(7, 35, 18, 1, trim);
+      } else {
+        r(7, 35, 18, 1, trim);
+      }
+      // スカート（裾広がり、y=41..47を上書き）
+      // 上から段階的に広がる
+      r(10, 41, 12, 1, dr); r(10, 41, 1, 1, drD); r(21, 41, 1, 1, drD);
+      r(9,  42, 14, 1, dr); r(9,  42, 1, 1, drD); r(22, 42, 1, 1, drD);
+      r(8,  43, 16, 1, dr); r(8,  43, 1, 1, drD); r(23, 43, 1, 1, drD);
+      r(7,  44, 18, 1, dr); r(7,  44, 1, 1, drD); r(24, 44, 1, 1, drD);
+      r(6,  45, 20, 1, dr); r(6,  45, 1, 1, drD); r(25, 45, 1, 1, drD);
+      r(5,  46, 22, 1, dr); r(5,  46, 1, 1, drD); r(26, 46, 1, 1, drD);
+      r(5,  47, 22, 1, drD);
+      // 金の縁（裾）
+      r(6, 47, 20, 1, trim);
+    }
   }
 
   // 呼び出し側はタイル左上(sx, sy)を渡す。キャラは32×48なので頭が上にはみ出し、足元がタイル下端に揃う。
@@ -2329,235 +2562,980 @@
     ctx.beginPath(); ctx.ellipse(sx + 60, sy + 122, 36, 5, 0, 0, Math.PI * 2); ctx.fill();
 
     if (type === 'guardian') {
-      // 鎧チビ騎士（赤マント＋ハルバード）
+      // 塔の番人（騎士・スマート比＝5頭身相当）
       const armor = '#6a7a88', armorD = '#3a4a58', armorH = '#aabac8';
-      const cape  = '#9a2030', capeD = '#5a1018';
-      // マント
-      r(8,  60, 14, 50, capeD);
-      r(98, 60, 14, 50, capeD);
-      r(12, 56, 96, 56, cape);
-      r(12, 100, 96, 12, capeD);
-      // 兜（角丸）
-      r(36, 4, 48, 2, O); r(32, 6, 56, 2, O); r(28, 8, 64, 2, O);
-      r(26, 10, 2, 38, O); r(92, 10, 2, 38, O);
-      r(28, 10, 64, 38, armor);
-      r(28, 10, 64, 4, armorH);
-      r(28, 44, 64, 4, armorD);
-      // 兜頂上の赤いプラム
-      r(56, 0, 8, 6, '#dac030');
-      r(54, 0, 12, 2, O);
-      r(50, 0, 4, 5, '#aa3030'); r(66, 0, 4, 5, '#aa3030');
-      // 顔のスリット（バイザー）
-      r(32, 22, 56, 12, O);
-      // 目（赤く光る）
+      const cape  = '#9a2030', capeD = '#5a1018', capeH = '#bb3040';
+      const skin  = '#e8b48a', skinD = '#b07c5a';
+      const beard = '#2a1810', beardH = '#4a3020';
+      const gold  = '#dac030';
+
+      // ============ マント（背面・肩から足元まで） ============
+      r(20, 44, 80, 68, capeD);
+      r(22, 44, 76, 64, cape);
+      r(22, 44, 76, 3, capeH);
+      r(22, 100, 76, 8, capeD);
+      r(60, 46, 1, 60, capeD); // 中央の縫い目
+
+      // ============ 兜（頭部・32×32 スマート比） ============
+      // プラム（赤い飾り房）
+      r(58, 0, 4, 4, gold);
+      r(54, 2, 4, 4, '#aa3030'); r(62, 2, 4, 4, '#aa3030');
+      r(56, 0, 8, 2, O);
+      // 兜輪郭
+      r(46, 4, 28, 2, O);
+      r(44, 6, 32, 2, O);
+      r(42, 8, 36, 2, O);
+      r(42, 10, 2, 18, O); r(76, 10, 2, 18, O);
+      r(44, 10, 32, 16, armor);
+      r(44, 10, 32, 4, armorH);
+      r(44, 22, 32, 2, armorD);
+      r(42, 26, 36, 2, O);
+
+      // ============ 顔（兜の下から覗く） ============
+      r(46, 28, 28, 12, skin);
+      r(44, 28, 2, 12, O); r(74, 28, 2, 12, O);
+      r(46, 38, 28, 2, skinD);
+      r(44, 40, 32, 2, O);
+      // 鼻
+      r(58, 30, 4, 4, skinD);
+      // 目
       if (expr === 'crying') {
-        r(40, 26, 8, 4, '#aaa');
-        r(72, 26, 8, 4, '#aaa');
-        // 涙
-        r(42, 32, 4, 14, '#5aaee8');
-        r(74, 32, 4, 14, '#5aaee8');
+        r(48, 28, 6, 2, '#fff'); r(66, 28, 6, 2, '#fff');
+        r(49, 29, 4, 1, '#1a1a3a'); r(67, 29, 4, 1, '#1a1a3a');
+        r(50, 32, 3, 8, '#5aaee8'); r(68, 32, 3, 8, '#5aaee8');
+      } else if (expr === 'angry') {
+        r(46, 26, 10, 2, beard);
+        r(64, 26, 10, 2, beard);
+        r(48, 30, 6, 2, '#3a1010'); r(66, 30, 6, 2, '#3a1010');
       } else {
-        r(40, 26, 8, 4, '#ff3030');
-        r(72, 26, 8, 4, '#ff3030');
-        r(41, 26, 6, 2, '#ffaa20');
-        r(73, 26, 6, 2, '#ffaa20');
+        r(48, 30, 6, 2, '#1a1a2a'); r(66, 30, 6, 2, '#1a1a2a');
+        r(49, 30, 2, 1, '#3a3a4a'); r(67, 30, 2, 1, '#3a3a4a');
       }
-      // 兜の口元（V字）
-      r(54, 38, 12, 2, armorD);
-      r(56, 40, 8, 2, armorD);
-      // 胸鎧
-      r(28, 50, 64, 4, O);
-      r(28, 50, 64, 36, armor);
-      r(28, 50, 64, 4, armorH);
-      r(28, 82, 64, 4, armorD);
-      r(26, 54, 2, 32, O); r(92, 54, 2, 32, O);
-      // 胸の紋章（黄色の盾）
-      r(50, 58, 20, 24, '#dac030');
-      r(48, 58, 2, 24, O); r(70, 58, 2, 24, O);
-      r(50, 56, 20, 2, O); r(50, 82, 20, 2, O);
-      r(56, 64, 8, 14, O); // 中央の黒十字
-      r(52, 68, 16, 4, O);
-      // 肩当て（突起）
-      r(14, 52, 18, 4, O); r(14, 56, 18, 16, armor); r(14, 70, 18, 4, O);
-      r(14, 56, 18, 4, armorH); r(14, 68, 18, 4, armorD);
-      r(88, 52, 18, 4, O); r(88, 56, 18, 16, armor); r(88, 70, 18, 4, O);
-      r(88, 56, 18, 4, armorH); r(88, 68, 18, 4, armorD);
-      // 腕
-      r(18, 74, 14, 28, armor);
-      r(16, 74, 2, 28, O); r(32, 74, 2, 28, O);
-      r(88, 74, 14, 28, armor);
-      r(86, 74, 2, 28, O); r(102, 74, 2, 28, O);
-      // ハルバード（右手）
-      r(96, 32, 4, 80, O);
-      r(97, 32, 2, 80, '#7a4a20');
-      r(86, 28, 26, 4, O);
-      r(88, 32, 22, 8, '#aaaaaa');
-      r(88, 32, 22, 2, '#dadada');
-      r(108, 24, 6, 12, O);
-      r(110, 26, 2, 8, '#dadada');
-      // 腰の鎧スカート
-      r(28, 86, 64, 18, armorD);
-      r(30, 86, 16, 18, armor); r(50, 86, 20, 18, armor); r(74, 86, 16, 18, armor);
-      r(46, 86, 4, 18, armorD); r(70, 86, 4, 18, armorD);
-      // 足
-      r(36, 104, 16, 10, O);
-      r(68, 104, 16, 10, O);
-      r(38, 104, 12, 8, '#3a2a1a');
-      r(70, 104, 12, 8, '#3a2a1a');
+      // 髭（頬から顎、口を含む）
+      r(46, 34, 28, 6, beard);
+      r(48, 34, 24, 1, beardH);
+      r(54, 36, 12, 1, '#3a1818');
+
+      // ============ 首 ============
+      r(54, 42, 12, 4, skin);
+      r(52, 42, 2, 4, O); r(66, 42, 2, 4, O);
+
+      // ============ 肩当て（広い騎士シルエット） ============
+      r(28, 46, 14, 10, O);
+      r(30, 46, 12, 10, armor);
+      r(30, 46, 12, 3, armorH); r(30, 53, 12, 3, armorD);
+      r(78, 46, 14, 10, O);
+      r(80, 46, 12, 10, armor);
+      r(80, 46, 12, 3, armorH); r(80, 53, 12, 3, armorD);
+
+      // ============ 胸鎧（40w x 38h） ============
+      r(40, 46, 40, 38, armor);
+      r(40, 46, 40, 4, armorH);
+      r(40, 80, 40, 4, armorD);
+      r(38, 46, 2, 38, O); r(80, 46, 2, 38, O);
+      r(38, 84, 44, 1, O);
+      // 胸の紋章（黄色盾＋黒十字）
+      r(52, 52, 16, 22, gold);
+      r(50, 52, 2, 22, O); r(68, 52, 2, 22, O);
+      r(52, 50, 16, 2, O); r(52, 74, 16, 2, O);
+      r(58, 56, 4, 14, O);
+      r(54, 62, 12, 2, O);
+
+      // ============ 腕（細長く） ============
+      r(30, 56, 12, 28, armor);
+      r(28, 56, 2, 28, O); r(42, 56, 2, 28, O);
+      r(30, 56, 12, 3, armorH);
+      r(78, 56, 12, 28, armor);
+      r(76, 56, 2, 28, O); r(90, 56, 2, 28, O);
+      r(78, 56, 12, 3, armorH);
+      // ガントレット
+      r(28, 80, 14, 6, O);
+      r(30, 80, 12, 5, '#3a2820');
+      r(78, 80, 14, 6, O);
+      r(80, 80, 12, 5, '#3a2820');
+
+      // ============ 腰の鎧スカート（タセット） ============
+      r(40, 84, 40, 14, armorD);
+      r(40, 84, 40, 1, O);
+      r(42, 86, 12, 12, armor); r(56, 86, 8, 12, armor); r(66, 86, 12, 12, armor);
+      r(54, 86, 2, 12, armorD); r(64, 86, 2, 12, armorD);
+      r(42, 86, 12, 2, armorH); r(56, 86, 8, 2, armorH); r(66, 86, 12, 2, armorH);
+
+      // ============ 脚（グリーブ） ============
+      r(44, 98, 14, 18, armor);
+      r(62, 98, 14, 18, armor);
+      r(43, 98, 1, 18, O); r(58, 98, 1, 18, O);
+      r(61, 98, 1, 18, O); r(76, 98, 1, 18, O);
+      r(44, 98, 14, 3, armorH); r(62, 98, 14, 3, armorH);
+      r(44, 113, 14, 3, armorD); r(62, 113, 14, 3, armorD);
+      // ブーツ
+      r(42, 116, 18, 4, O);
+      r(60, 116, 18, 4, O);
+      r(43, 117, 16, 2, '#1a0a08');
+      r(61, 117, 16, 2, '#1a0a08');
+
+      // ============ ハルバード（右側に長く立てる） ============
+      r(98, 8, 4, 108, O);
+      r(99, 8, 2, 108, '#7a4a20');
+      r(88, 4, 24, 4, O);
+      r(90, 8, 20, 8, '#aaaaaa');
+      r(90, 8, 20, 2, '#dadada');
+      r(108, 0, 6, 12, O);
+      r(110, 2, 2, 8, '#dadada');
+    } else if (type === 'witches_idols') {
+      // 魔女の丘で動き出した木彫り像9本（後列4＋前列5、中央=魔女が最大）
+      // クルシュー砂州 Juodkrantė の彫刻公園にある縦長トーテムポール風
+      const woodL = '#a06840', woodM = '#7a4a28', woodD = '#3a2010', woodH = '#c08858';
+      const paintR = '#9a3a30', paintG = '#3a6a4a', paintY = '#dac030';
+      const bands = [paintR, paintG, paintY];
+
+      // 9体の彫刻設定（各々頭の形・体彩色・表情バリエが異なる）
+      // headStyle: horns / hat / crown / beard / hooded / pointy / plain / rough / witch_big
+      // exprVar: 0..2 同じexpr内での個体差（眉の角度・涙量・目の細さなど）
+      // 横に大きく広げて「囲まれている」圧迫感を出す
+      const idols = [
+        // ===== 後列4体（上方・小さめ・薄暗い・霧の奥） =====
+        { cx: -20, topY: 22, w: 14, hh: 20, bh: 64, head: 'horns',  band: 0, exprVar: 1, back: true },
+        { cx: 30,  topY: 16, w: 14, hh: 22, bh: 70, head: 'crown',  band: 1, exprVar: 2, back: true },
+        { cx: 90,  topY: 18, w: 14, hh: 22, bh: 68, head: 'beard',  band: 2, exprVar: 0, back: true },
+        { cx: 140, topY: 22, w: 14, hh: 20, bh: 64, head: 'plain',  band: 0, exprVar: 1, back: true },
+        // ===== 前列5体（下方・大きめ・最前面・観るものを取り囲む） =====
+        { cx: -40, topY: 42, w: 18, hh: 24, bh: 84, head: 'pointy', band: 1, exprVar: 2, back: false },
+        { cx: 12,  topY: 36, w: 18, hh: 26, bh: 88, head: 'hat',    band: 2, exprVar: 0, back: false },
+        { cx: 60,  topY: 22, w: 24, hh: 32, bh: 104, head: 'witch_big', band: 0, exprVar: 1, back: false },
+        { cx: 108, topY: 36, w: 18, hh: 26, bh: 88, head: 'rough',  band: 1, exprVar: 2, back: false },
+        { cx: 160, topY: 42, w: 18, hh: 24, bh: 84, head: 'hooded', band: 2, exprVar: 0, back: false },
+      ];
+
+      // ===== 不気味な森の床（彫刻の足元に長い影を落とす） =====
+      // 下半分に黒い帯を置き、ところどころ濡れた土のテクスチャ
+      ctx.fillStyle = 'rgba(20,10,20,0.55)';
+      ctx.fillRect(sx - 50, sy + 124, 280, 30);
+      ctx.fillStyle = 'rgba(40,20,30,0.4)';
+      for (let k = 0; k < 14; k++) {
+        ctx.fillRect(sx - 50 + k * 22, sy + 130 + (k % 3) * 4, 8, 2);
+      }
+
+      // 後列を先に描く（前列が手前に重なる）
+      const drawOrder = idols.slice().sort((a, b) => (b.back ? 1 : 0) - (a.back ? 1 : 0));
+      drawOrder.forEach(I => {
+        const cx = I.cx, ty = I.topY, w = I.w, hh = I.hh, bh = I.bh;
+        const isBack = I.back;
+        // 後列は色を一段暗く（霧の奥のニュアンス）
+        const wL = isBack ? woodM : woodL;
+        const wM = isBack ? woodD : woodM;
+        const wH = isBack ? woodM : woodH;
+
+        // ===== 頭の上の装飾 =====
+        if (I.head === 'horns') {
+          r(cx - w/2 + 1, ty - 4, 2, 4, woodD);
+          r(cx + w/2 - 3, ty - 4, 2, 4, woodD);
+        } else if (I.head === 'hat') {
+          r(cx - 1, ty - 8, 2, 4, woodD);
+          r(cx - 4, ty - 4, 8, 4, woodD);
+        } else if (I.head === 'witch_big') {
+          // 三角の魔女帽子
+          r(cx - 2, ty - 14, 4, 4, woodD);
+          r(cx - 6, ty - 10, 12, 4, woodD);
+          r(cx - 12, ty - 6, 24, 4, woodD);
+          r(cx - 4, ty - 10, 8, 4, woodM);
+          r(cx - 10, ty - 6, 20, 4, woodM);
+          r(cx - 14, ty - 2, 28, 2, woodD);
+        } else if (I.head === 'crown') {
+          r(cx - w/2 + 2, ty - 4, w - 4, 2, '#dac030');
+          r(cx - 3, ty - 6, 2, 2, '#dac030');
+          r(cx + 1, ty - 6, 2, 2, '#dac030');
+        } else if (I.head === 'pointy') {
+          r(cx - 1, ty - 4, 2, 4, woodD);
+        } else if (I.head === 'hooded') {
+          r(cx - w/2 - 1, ty, w + 2, 4, woodD);
+        }
+        // beard / plain / rough は装飾なし
+
+        // ===== 頭部 =====
+        r(cx - w/2, ty, w, hh, woodD);
+        r(cx - w/2 + 1, ty + 1, w - 2, hh - 2, wM);
+        r(cx - w/2 + 1, ty + 1, w - 2, 2, wH);
+
+        // ===== 目（exprとexprVarで微妙に違う） =====
+        const eyeY = ty + Math.floor(hh * 0.4);
+        const eyeXL = cx - Math.floor(w * 0.28);
+        const eyeXR = cx + Math.floor(w * 0.18);
+        if (expr === 'crying') {
+          // 泣き：白目＋青い涙の量がexprVarで変わる
+          const tearLen = 4 + I.exprVar * 2;
+          r(eyeXL, eyeY, 2, 2, '#fff'); r(eyeXR, eyeY, 2, 2, '#fff');
+          r(eyeXL, eyeY + 3, 1, tearLen, '#5aaee8');
+          r(eyeXR + 1, eyeY + 3, 1, tearLen, '#5aaee8');
+        } else if (expr === 'angry') {
+          // 怒り：眉の角度・目の鋭さがexprVarで変わる
+          if (I.exprVar === 0) {
+            // 眉つり上がり
+            r(eyeXL - 1, eyeY - 2, 4, 1, woodD);
+            r(eyeXR, eyeY - 2, 4, 1, woodD);
+          } else if (I.exprVar === 1) {
+            // 八の字眉（ハの字）
+            r(eyeXL, eyeY - 2, 3, 1, woodD); r(eyeXL - 1, eyeY - 1, 1, 1, woodD);
+            r(eyeXR, eyeY - 2, 3, 1, woodD); r(eyeXR + 2, eyeY - 1, 1, 1, woodD);
+          } else {
+            // 太い直線眉
+            r(eyeXL - 1, eyeY - 2, 5, 2, woodD);
+            r(eyeXR - 1, eyeY - 2, 5, 2, woodD);
+          }
+          r(eyeXL, eyeY, 2, 2, '#3a1010');
+          r(eyeXR, eyeY, 2, 2, '#3a1010');
+        } else {
+          // 通常：目の形がexprVarで違う（◎・点・細目）
+          if (I.exprVar === 0) {
+            r(eyeXL, eyeY, 2, 2, woodD);
+            r(eyeXR, eyeY, 2, 2, woodD);
+          } else if (I.exprVar === 1) {
+            r(eyeXL, eyeY, 3, 3, woodD);
+            r(eyeXL + 1, eyeY + 1, 1, 1, '#fff');
+            r(eyeXR - 1, eyeY, 3, 3, woodD);
+            r(eyeXR, eyeY + 1, 1, 1, '#fff');
+          } else {
+            // 細目
+            r(eyeXL, eyeY + 1, 3, 1, woodD);
+            r(eyeXR - 1, eyeY + 1, 3, 1, woodD);
+          }
+        }
+
+        // ===== 口（exprVar違い） =====
+        const mouthY = ty + Math.floor(hh * 0.72);
+        if (expr === 'crying') {
+          // への字
+          r(cx - 2, mouthY, 4, 1, woodD);
+          r(cx - 3, mouthY + 1, 1, 1, woodD);
+          r(cx + 2, mouthY + 1, 1, 1, woodD);
+        } else if (expr === 'angry') {
+          // 開き口（叫び）/ 噛み締め / ニヤリ
+          if (I.exprVar === 0) {
+            r(cx - 3, mouthY, 6, 3, '#1a0808');
+            r(cx - 2, mouthY + 1, 4, 1, '#3a1010');
+          } else if (I.exprVar === 1) {
+            r(cx - 3, mouthY, 6, 1, woodD);
+          } else {
+            r(cx - 3, mouthY, 4, 1, woodD);
+            r(cx + 1, mouthY - 1, 2, 1, woodD);
+          }
+        } else {
+          // 通常：◎口・横一文字・半笑い
+          if (I.exprVar === 0) {
+            r(cx - 1, mouthY, 2, 1, woodD);
+          } else if (I.exprVar === 1) {
+            r(cx - 2, mouthY, 4, 1, woodD);
+          } else {
+            r(cx - 2, mouthY, 4, 1, woodD);
+            r(cx - 3, mouthY + 1, 6, 1, '#3a1818');
+          }
+        }
+
+        // ===== ヒゲ（beard / rough のみ） =====
+        if (I.head === 'beard') {
+          r(cx - 3, mouthY + 2, 6, 4, '#cccccc');
+          r(cx - 4, mouthY + 3, 8, 2, '#aaaaaa');
+        } else if (I.head === 'rough') {
+          r(cx - 3, mouthY + 2, 6, 2, woodD);
+        }
+
+        // ===== 体（樽型ポスト） =====
+        const bodyY = ty + hh;
+        r(cx - w/2 - 1, bodyY, w + 2, bh, woodD);
+        r(cx - w/2, bodyY + 1, w, bh - 2, wL);
+        r(cx - w/2, bodyY + 1, w, 2, wH);
+
+        // 民族衣装の彩色帯（バンド開始色を個体ごとに変える）
+        const bandColors = [bands[I.band % 3], bands[(I.band + 1) % 3], bands[(I.band + 2) % 3]];
+        r(cx - w/2, bodyY + Math.floor(bh * 0.18), w, 3, bandColors[0]);
+        r(cx - w/2, bodyY + Math.floor(bh * 0.45), w, 4, bandColors[1]);
+        r(cx - w/2, bodyY + Math.floor(bh * 0.72), w, 3, bandColors[2]);
+
+        // 木目（縦の溝）
+        r(cx - Math.floor(w * 0.2), bodyY + 2, 1, bh - 4, woodD);
+        r(cx + Math.floor(w * 0.2), bodyY + 2, 1, bh - 4, woodD);
+      });
+    } else if (type === 'victoria') {
+      // 歌姫ヴィクトリア（華やかなロングドレス＋片手を上げて歌うポーズ）
+      const skin = '#f4d0a8', skinD = '#c89070';
+      const hair = '#3a1810', hairH = '#7a3018', hairD = '#1a0a08';
+      const dress = '#aa1840', dressH = '#cc3060', dressD = '#5a0820';
+      const gold = '#dac030', goldH = '#fff088';
+      // 髪の流れ（後ろ髪・肩より下まで）
+      r(38, 32, 4, 36, hair); r(78, 32, 4, 36, hair);
+      r(36, 36, 4, 28, hairH); r(80, 36, 4, 28, hairH);
+      // 頭（やや小さめ・スマート）
+      r(46, 6, 28, 2, O);
+      r(44, 8, 32, 2, hair);
+      r(42, 10, 36, 4, hair);
+      r(42, 14, 2, 24, O); r(76, 14, 2, 24, O);
+      r(44, 14, 32, 24, skin);
+      r(44, 36, 32, 2, skinD);
+      r(44, 38, 32, 2, O);
+      // 前髪・横髪
+      r(44, 14, 32, 4, hair);
+      r(48, 14, 6, 2, hairH);
+      r(44, 14, 2, 14, hair);
+      r(74, 14, 2, 14, hair);
+      // ティアラ
+      r(54, 8, 12, 2, gold);
+      r(58, 6, 4, 2, goldH); r(56, 7, 2, 1, goldH); r(62, 7, 2, 1, goldH);
+      // 目（華やか）
+      if (expr === 'crying') {
+        r(50, 22, 4, 1, hairD); r(66, 22, 4, 1, hairD);
+        r(50, 25, 3, 8, '#5aaee8'); r(66, 25, 3, 8, '#5aaee8');
+      } else if (expr === 'angry') {
+        r(48, 20, 8, 2, hairD); r(64, 20, 8, 2, hairD);
+        r(50, 24, 4, 3, hairD); r(66, 24, 4, 3, hairD);
+      } else {
+        r(50, 23, 4, 4, hairD); r(66, 23, 4, 4, hairD);
+        r(51, 24, 2, 2, '#fff'); r(67, 24, 2, 2, '#fff');
+        r(48, 21, 8, 1, hair); r(64, 21, 8, 1, hair); // まつ毛
+      }
+      // 鼻
+      r(59, 27, 2, 4, skinD);
+      // 口紅（赤）
+      r(56, 33, 8, 2, dress);
+      r(57, 34, 6, 1, '#3a0810');
+      // 頬の赤み
+      ctx.fillStyle = 'rgba(255,140,150,0.55)';
+      ctx.fillRect(sx + 44, sy + 30, 4, 4); ctx.fillRect(sx + 72, sy + 30, 4, 4);
+      // イヤリング
+      r(40, 24, 2, 4, gold); r(78, 24, 2, 4, gold);
+      // 首・ネックレス
+      r(56, 40, 8, 4, skin);
+      r(50, 46, 20, 2, gold); r(54, 48, 12, 2, goldH);
+      // 上半身（オフショルダードレス）
+      r(40, 48, 40, 2, skinD);   // デコルテ
+      r(38, 50, 8, 32, dress);    // 左肩のドレスストラップ
+      r(74, 50, 8, 32, dress);    // 右肩
+      r(38, 50, 8, 2, dressH); r(74, 50, 8, 2, dressH);
+      r(46, 56, 28, 28, dress);   // 胸〜ウエスト
+      r(46, 56, 28, 4, dressH);
+      r(46, 80, 28, 4, dressD);
+      // 金のサッシュ
+      r(44, 80, 32, 4, gold);
+      r(44, 80, 32, 1, goldH);
+      // ロングフレアドレス（裾広がり）
+      r(42, 84, 36, 6, dress);
+      r(40, 90, 40, 6, dress);
+      r(38, 96, 44, 6, dress);
+      r(36, 102, 48, 6, dress);
+      r(34, 108, 52, 6, dress);
+      r(32, 114, 56, 6, dressD);
+      // ドレープのライン
+      r(48, 86, 2, 32, dressH); r(70, 86, 2, 32, dressH);
+      r(58, 86, 4, 32, dressD);
+      // 左腕（腰に当てる）
+      r(28, 50, 12, 4, dress);
+      r(28, 50, 4, 32, dress);
+      r(28, 50, 4, 2, dressH);
+      r(26, 80, 8, 6, skin); r(26, 80, 8, 1, skinD);
+      // 右腕（高く挙げる：歌唱ポーズ）
+      r(80, 38, 4, 12, skin);     // 上腕（斜め上）
+      r(82, 22, 4, 18, skin);     // 前腕
+      r(80, 14, 8, 10, skin);     // 手のひら
+      r(80, 14, 8, 1, skinD); r(80, 23, 8, 1, skinD);
+    } else if (type === 'audience_30k') {
+      // 3万人の観衆（リアル寄り・4段構成）
+      // sx=130, CANVAS_W=384 → local x = -120〜+240 で画面ほぼ全域を使う
+
+      // ====== 第4列：最奥（22体・暗いシルエット・遠景の頭の波） ======
+      for (let i = 0; i < 22; i++) {
+        const bx = -118 + i * 16;
+        const by = 2 + (i % 5) * 2;
+        const col = (i % 2) ? '#2a1a3a' : '#3a2a4a';
+        r(bx, by, 9, 18, col);
+        r(bx, by, 9, 5, darken(col, 0.7));
+        // 頭の丸み（角を一段暗く）
+        r(bx, by, 1, 1, O); r(bx + 8, by, 1, 1, O);
+        r(bx + 1, by, 7, 4, darken(col, 0.5));
+      }
+
+      // ====== 第3列：奥（13体・色付き・頭は丸めに） ======
+      const r3pal = ['#5a3040','#3a5a7a','#7a5a30','#4a3a7a','#3a7a5a','#7a3a5a','#3a4a7a','#5a3a30'];
+      for (let i = 0; i < 13; i++) {
+        const bx = -110 + i * 28;
+        const by = 22;
+        const col = r3pal[i % r3pal.length];
+        const skin = (i % 3 === 0) ? '#d8a880' : (i % 3 === 1) ? '#e8b890' : '#f0c89a';
+        const hairC = ['#3a2a1a','#5a3a20','#dac060','#7a3a20','#a06040'][i % 5];
+        // 体
+        r(bx, by, 16, 24, col);
+        r(bx, by, 16, 3, lighten(col, 1.3));
+        r(bx, by + 21, 16, 3, darken(col, 0.65));
+        // 頭（角を落として丸く）
+        r(bx + 3, by - 10, 10, 10, skin);
+        r(bx + 3, by - 10, 1, 1, O); r(bx + 12, by - 10, 1, 1, O);
+        r(bx + 3, by - 1, 1, 1, O); r(bx + 12, by - 1, 1, 1, O);
+        // 髪
+        r(bx + 3, by - 10, 10, 4, hairC);
+        r(bx + 4, by - 9, 8, 1, lighten(hairC, 1.4));
+        if (i % 3 === 0) {
+          // 長髪（女性）
+          r(bx + 2, by - 6, 2, 8, hairC);
+          r(bx + 12, by - 6, 2, 8, hairC);
+        }
+        // 眉
+        r(bx + 4, by - 6, 2, 1, darken(hairC, 0.6));
+        r(bx + 10, by - 6, 2, 1, darken(hairC, 0.6));
+        // 目（点でなく短い線で人間味）
+        r(bx + 5, by - 5, 1, 1, O); r(bx + 10, by - 5, 1, 1, O);
+        // 鼻の影
+        r(bx + 7, by - 4, 2, 1, darken(skin, 0.8));
+        // 口
+        r(bx + 6, by - 2, 4, 1, '#aa4040');
+        // 万歳の腕
+        if (i % 2 === 0) {
+          r(bx - 1, by - 6, 2, 8, skin);
+          r(bx + 15, by - 6, 2, 8, skin);
+          r(bx - 2, by - 12, 4, 7, col);
+          r(bx + 14, by - 12, 4, 7, col);
+        }
+      }
+
+      // ====== 第2列：中段（9体・人間味のある顔・万歳/拍手交互） ======
+      const r2pal = [
+        {sk:'#f0c89a', skD:'#c89070', hr:'#3a2a1a', cl:'#aa3030', g:'f'},
+        {sk:'#e8b890', skD:'#b08868', hr:'#dac030', cl:'#3a6abe', g:'f'},
+        {sk:'#fadcb0', skD:'#c89c80', hr:'#7a3a20', cl:'#3aae6a', g:'m'},
+        {sk:'#d8a880', skD:'#a87858', hr:'#5a3a20', cl:'#9a4ade', g:'f'},
+        {sk:'#f0c89a', skD:'#c89070', hr:'#a06040', cl:'#aa6030', g:'m'},
+        {sk:'#e8b890', skD:'#b08868', hr:'#3a2a1a', cl:'#3a8a8a', g:'f'},
+        {sk:'#f4cca0', skD:'#cc9878', hr:'#dac060', cl:'#c83080', g:'f'},
+        {sk:'#e0b890', skD:'#a88868', hr:'#5a3a20', cl:'#3a4ade', g:'m'},
+        {sk:'#f0c89a', skD:'#c89070', hr:'#3a2a1a', cl:'#7a8a3a', g:'f'},
+      ];
+      for (let i = 0; i < 9; i++) {
+        const bx = -106 + i * 38;
+        const by = 56;
+        const fp = r2pal[i];
+        const hrH = lighten(fp.hr, 1.4), hrD = darken(fp.hr, 0.6);
+        // 体
+        r(bx, by, 24, 26, fp.cl);
+        r(bx, by, 24, 4, lighten(fp.cl, 1.3));
+        r(bx, by + 22, 24, 4, darken(fp.cl, 0.65));
+        // 首
+        r(bx + 9, by - 2, 6, 2, fp.sk);
+        r(bx + 9, by - 2, 6, 1, fp.skD);
+        // 頭（角を削って丸く）
+        r(bx + 4, by - 16, 16, 16, fp.sk);
+        r(bx + 4, by - 16, 1, 2, O); r(bx + 19, by - 16, 1, 2, O);
+        r(bx + 4, by - 2, 1, 1, O); r(bx + 19, by - 2, 1, 1, O);
+        // 額の明るみ
+        r(bx + 7, by - 15, 10, 1, lighten(fp.sk, 1.1));
+        // 顎の影
+        r(bx + 5, by - 3, 14, 1, fp.skD);
+        // 髪
+        if (fp.g === 'f') {
+          // 女性：横にも髪が伸びる
+          r(bx + 3, by - 16, 18, 6, fp.hr);
+          r(bx + 5, by - 15, 14, 1, hrH);
+          r(bx + 3, by - 10, 2, 8, fp.hr);
+          r(bx + 19, by - 10, 2, 8, fp.hr);
+          // 前髪（不揃い）
+          r(bx + 7, by - 11, 4, 1, fp.hr);
+          r(bx + 14, by - 11, 4, 1, fp.hr);
+        } else {
+          // 男性：短髪
+          r(bx + 4, by - 16, 16, 5, fp.hr);
+          r(bx + 5, by - 15, 14, 1, hrH);
+          r(bx + 5, by - 11, 3, 1, fp.hr);
+          r(bx + 16, by - 11, 3, 1, fp.hr);
+        }
+        // 眉
+        r(bx + 7, by - 10, 3, 1, hrD);
+        r(bx + 14, by - 10, 3, 1, hrD);
+        // 目（白目＋瞳）
+        r(bx + 7, by - 9, 3, 2, '#fff');
+        r(bx + 14, by - 9, 3, 2, '#fff');
+        r(bx + 8, by - 9, 1, 2, O);
+        r(bx + 15, by - 9, 1, 2, O);
+        // 鼻
+        r(bx + 11, by - 8, 2, 3, fp.skD);
+        r(bx + 11, by - 5, 2, 1, darken(fp.sk, 0.65));
+        // 口（笑顔・上下の唇）
+        r(bx + 9, by - 4, 6, 1, '#aa3030');
+        r(bx + 10, by - 3, 4, 1, '#5a1018');
+        // 頬の赤み
+        ctx.fillStyle = 'rgba(255,150,150,0.4)';
+        ctx.fillRect(sx + bx + 5, sy + by - 7, 2, 2);
+        ctx.fillRect(sx + bx + 17, sy + by - 7, 2, 2);
+        // ポーズ
+        if (i % 2 === 0) {
+          // 万歳
+          r(bx - 2, by - 18, 5, 10, fp.sk);
+          r(bx + 21, by - 18, 5, 10, fp.sk);
+          r(bx - 4, by - 26, 7, 10, fp.cl);
+          r(bx + 21, by - 26, 7, 10, fp.cl);
+          r(bx - 5, by - 30, 8, 6, fp.sk);
+          r(bx + 21, by - 30, 8, 6, fp.sk);
+          r(bx - 5, by - 30, 8, 1, fp.skD);
+          r(bx + 21, by - 30, 8, 1, fp.skD);
+        } else {
+          // 拍手
+          r(bx - 2, by + 4, 6, 14, fp.cl);
+          r(bx + 20, by + 4, 6, 14, fp.cl);
+          r(bx + 4, by + 14, 16, 7, fp.sk);
+          r(bx + 4, by + 14, 16, 1, fp.skD);
+          r(bx + 11, by + 14, 1, 7, fp.skD);
+        }
+      }
+
+      // ====== 第1列（最前列）：4体・人間の顔の構造をしっかり描く ======
+      const r1pal = [
+        {sk:'#f0c89a', hr:'#7a3a20', cl:'#c83040', pose:'cheer', gender:'f', hair:'long', eye:'#3a4a6a'},
+        {sk:'#d8a880', hr:'#2a1a10', cl:'#3aae6a', pose:'clap',  gender:'m', hair:'short', eye:'#3a2a1a', beard:true},
+        {sk:'#fadcb0', hr:'#dac060', cl:'#3a6abe', pose:'cheer', gender:'f', hair:'long', eye:'#5a8aae'},
+        {sk:'#e0a888', hr:'#5a3a20', cl:'#9a4ade', pose:'clap',  gender:'m', hair:'short', eye:'#3a2a1a'},
+      ];
+      for (let i = 0; i < 4; i++) {
+        const bx = -110 + i * 84;
+        const by = 100;
+        const fp = r1pal[i];
+        const skH = lighten(fp.sk, 1.12);
+        const skD = darken(fp.sk, 0.78);
+        const skDD = darken(fp.sk, 0.6);
+        const hrH = lighten(fp.hr, 1.4);
+        const hrD = darken(fp.hr, 0.6);
+        const clH = lighten(fp.cl, 1.3);
+        const clD = darken(fp.cl, 0.6);
+
+        // ============ 体 ============
+        r(bx + 2, by, 34, 22, fp.cl);
+        r(bx, by + 2, 38, 18, fp.cl);
+        r(bx, by + 2, 38, 4, clH);
+        r(bx, by + 17, 38, 5, clD);
+        r(bx + 4, by, 30, 1, clD); // 肩のライン
+        // 服の襟元
+        r(bx + 14, by, 10, 4, darken(fp.cl, 0.45));
+
+        // ============ 首（影あり） ============
+        r(bx + 14, by - 5, 10, 5, fp.sk);
+        r(bx + 14, by - 5, 10, 1, skDD);
+        r(bx + 14, by - 5, 1, 5, skD);
+        r(bx + 23, by - 5, 1, 5, skD);
+
+        // ============ 頭部（角を落として丸く） ============
+        r(bx + 4, by - 26, 30, 22, fp.sk);
+        // 角（左上・右上・左下・右下を1〜2px切る）
+        r(bx + 4, by - 26, 2, 1, O); r(bx + 32, by - 26, 2, 1, O);
+        r(bx + 4, by - 25, 1, 1, O); r(bx + 33, by - 25, 1, 1, O);
+        r(bx + 4, by - 5, 1, 1, O);  r(bx + 33, by - 5, 1, 1, O);
+        // 顔の輪郭（陰影で立体感）
+        r(bx + 5, by - 16, 1, 8, skD);   // 左頬の影
+        r(bx + 32, by - 16, 1, 8, skD);  // 右頬の影
+        r(bx + 6, by - 7, 26, 1, skD);   // 顎下の影
+        r(bx + 8, by - 24, 22, 1, skH);  // 額のハイライト
+
+        // ============ 髪 ============
+        if (fp.hair === 'long') {
+          // ロング：頭頂〜サイド（耳の下）まで
+          r(bx + 4, by - 26, 30, 9, fp.hr);
+          r(bx + 6, by - 25, 26, 1, hrH);
+          r(bx + 12, by - 24, 6, 1, hrH);
+          r(bx + 22, by - 24, 4, 1, hrH);
+          // 前髪（流れる）
+          r(bx + 6, by - 18, 6, 2, fp.hr);
+          r(bx + 14, by - 18, 4, 1, fp.hr);
+          r(bx + 22, by - 18, 8, 2, fp.hr);
+          // サイド（顎の高さまで）
+          r(bx + 3, by - 18, 3, 12, fp.hr);
+          r(bx + 32, by - 18, 3, 12, fp.hr);
+          r(bx + 3, by - 16, 1, 10, hrD);
+          r(bx + 34, by - 16, 1, 10, hrD);
+        } else {
+          // ショート：頭頂のみ・サイドは耳上まで
+          r(bx + 4, by - 26, 30, 8, fp.hr);
+          r(bx + 6, by - 25, 26, 1, hrH);
+          r(bx + 14, by - 24, 8, 1, hrH);
+          // 前髪（不揃い）
+          r(bx + 6, by - 19, 8, 1, fp.hr);
+          r(bx + 14, by - 19, 6, 2, fp.hr);
+          r(bx + 22, by - 19, 6, 1, fp.hr);
+          // 耳上
+          r(bx + 3, by - 18, 2, 4, fp.hr);
+          r(bx + 33, by - 18, 2, 4, fp.hr);
+        }
+
+        // ============ 眉 ============
+        if (expr === 'angry') {
+          // 怒り：内側上がり
+          r(bx + 7, by - 19, 8, 2, hrD);
+          r(bx + 23, by - 19, 8, 2, hrD);
+          r(bx + 13, by - 17, 2, 1, hrD);
+          r(bx + 23, by - 17, 2, 1, hrD);
+        } else {
+          r(bx + 8, by - 17, 7, 1, hrD);
+          r(bx + 23, by - 17, 7, 1, hrD);
+        }
+
+        // ============ 目（白目・虹彩・瞳孔・反射光・睫毛） ============
+        if (expr === 'crying') {
+          // 涙目
+          r(bx + 8, by - 16, 6, 4, '#fff');
+          r(bx + 24, by - 16, 6, 4, '#fff');
+          r(bx + 10, by - 15, 3, 2, fp.eye);
+          r(bx + 26, by - 15, 3, 2, fp.eye);
+          r(bx + 11, by - 15, 1, 1, O);
+          r(bx + 27, by - 15, 1, 1, O);
+          // 涙
+          r(bx + 9, by - 11, 2, 8, '#5aaee8');
+          r(bx + 27, by - 11, 2, 8, '#5aaee8');
+          r(bx + 9, by - 11, 1, 8, '#9adcfa');
+          r(bx + 27, by - 11, 1, 8, '#9adcfa');
+        } else if (expr === 'angry') {
+          r(bx + 8, by - 15, 6, 3, '#fff');
+          r(bx + 24, by - 15, 6, 3, '#fff');
+          r(bx + 10, by - 14, 3, 2, fp.eye);
+          r(bx + 26, by - 14, 3, 2, fp.eye);
+          r(bx + 11, by - 14, 1, 1, O);
+          r(bx + 27, by - 14, 1, 1, O);
+        } else {
+          // 通常：白目＋虹彩＋瞳孔＋反射光
+          r(bx + 8, by - 16, 6, 4, '#fff');
+          r(bx + 24, by - 16, 6, 4, '#fff');
+          r(bx + 10, by - 15, 3, 3, fp.eye);
+          r(bx + 26, by - 15, 3, 3, fp.eye);
+          r(bx + 11, by - 14, 1, 2, O);
+          r(bx + 27, by - 14, 1, 2, O);
+          r(bx + 10, by - 15, 1, 1, '#fff'); // 反射光
+          r(bx + 26, by - 15, 1, 1, '#fff');
+          // 睫毛（上下）
+          r(bx + 8, by - 17, 6, 1, O);
+          r(bx + 24, by - 17, 6, 1, O);
+          r(bx + 8, by - 12, 6, 1, skD);
+          r(bx + 24, by - 12, 6, 1, skD);
+        }
+
+        // ============ 鼻（橋＋鼻翼＋鼻孔） ============
+        r(bx + 18, by - 14, 1, 6, skD);   // 左鼻筋
+        r(bx + 19, by - 14, 1, 4, skH);   // 中央ハイライト
+        r(bx + 20, by - 14, 1, 6, skD);   // 右鼻筋
+        r(bx + 17, by - 10, 6, 2, skD);   // 鼻翼
+        r(bx + 18, by - 9, 1, 1, O);      // 鼻孔
+        r(bx + 21, by - 9, 1, 1, O);
+
+        // ============ 口（上下の唇） ============
+        if (expr === 'crying') {
+          r(bx + 12, by - 7, 14, 2, O);
+          r(bx + 13, by - 6, 12, 1, '#5a1018');
+        } else if (expr === 'angry') {
+          r(bx + 12, by - 7, 14, 2, O);
+          r(bx + 14, by - 9, 4, 1, O);
+          r(bx + 22, by - 9, 4, 1, O);
+        } else {
+          // 笑顔（上唇＋下唇＋口角）
+          r(bx + 12, by - 8, 14, 1, '#cc4040');  // 上唇
+          r(bx + 13, by - 7, 12, 2, '#aa3030');  // 下唇（厚み）
+          r(bx + 14, by - 6, 10, 1, '#7a2020');  // 影
+          r(bx + 11, by - 7, 1, 1, O);           // 口角左
+          r(bx + 26, by - 7, 1, 1, O);           // 口角右
+        }
+
+        // ============ 髭（男性のみ） ============
+        if (fp.beard) {
+          r(bx + 12, by - 6, 14, 3, hrD);
+          r(bx + 14, by - 5, 10, 1, fp.hr);
+          r(bx + 16, by - 4, 6, 1, hrD);
+        }
+
+        // ============ 頬の赤み ============
+        ctx.fillStyle = 'rgba(255,140,150,0.5)';
+        ctx.fillRect(sx + bx + 6, sy + by - 12, 4, 4);
+        ctx.fillRect(sx + bx + 28, sy + by - 12, 4, 4);
+
+        // ============ 耳 ============
+        r(bx + 2, by - 14, 2, 5, fp.sk);
+        r(bx + 34, by - 14, 2, 5, fp.sk);
+        r(bx + 2, by - 14, 1, 5, skD);
+        r(bx + 35, by - 14, 1, 5, skD);
+
+        // ============ 腕＋手 ============
+        if (fp.pose === 'cheer') {
+          // 万歳（肩から斜めに上がる）
+          r(bx - 6, by + 2, 8, 12, fp.cl);
+          r(bx + 36, by + 2, 8, 12, fp.cl);
+          r(bx - 6, by + 2, 8, 2, clH);
+          r(bx + 36, by + 2, 8, 2, clH);
+          r(bx - 12, by - 18, 8, 22, fp.cl);
+          r(bx + 42, by - 18, 8, 22, fp.cl);
+          r(bx - 12, by - 18, 1, 22, clD);
+          r(bx + 49, by - 18, 1, 22, clD);
+          // 手のひら
+          r(bx - 14, by - 26, 10, 10, fp.sk);
+          r(bx + 42, by - 26, 10, 10, fp.sk);
+          r(bx - 14, by - 26, 10, 1, skDD);
+          r(bx + 42, by - 26, 10, 1, skDD);
+          r(bx - 14, by - 17, 10, 1, skD);
+          r(bx + 42, by - 17, 10, 1, skD);
+          // 親指
+          r(bx - 5, by - 22, 2, 3, fp.sk);
+          r(bx + 41, by - 22, 2, 3, fp.sk);
+          // 指の区切り
+          r(bx - 11, by - 25, 1, 8, skD);
+          r(bx - 8, by - 25, 1, 8, skD);
+          r(bx + 45, by - 25, 1, 8, skD);
+          r(bx + 48, by - 25, 1, 8, skD);
+        } else {
+          // 拍手（顔の前で両手）
+          r(bx - 4, by + 2, 8, 14, fp.cl);
+          r(bx + 34, by + 2, 8, 14, fp.cl);
+          r(bx - 4, by + 2, 8, 2, clH);
+          r(bx + 34, by + 2, 8, 2, clH);
+          r(bx + 2, by + 14, 34, 8, fp.sk);
+          r(bx + 2, by + 14, 34, 1, skDD);
+          r(bx + 18, by + 14, 1, 8, skDD);
+          r(bx + 2, by + 21, 34, 1, skD);
+          // 指の細かい区切り
+          for (let k = 0; k < 4; k++) {
+            r(bx + 4 + k * 4, by + 15, 1, 6, skD);
+            r(bx + 22 + k * 4, by + 15, 1, 6, skD);
+          }
+        }
+      }
+
+      // ====== 観衆が掲げるリトアニア国旗（観衆の上に） ======
+      function bigFlag(fx, fy, w) {
+        // ポール
+        r(fx, fy, 2, 50, '#7a4a20');
+        r(fx, fy, 1, 50, '#5a3a18');
+        // 旗（横長・はためき）
+        r(fx + 2, fy + 2, w, 4, '#dac030');
+        r(fx + 2, fy + 6, w, 4, '#3aae6a');
+        r(fx + 2, fy + 10, w, 4, '#c83040');
+        r(fx + 2, fy + 2, w, 1, '#fff088');
+        r(fx + 2, fy + 13, w, 1, '#7a1820');
+        // 端の縫い
+        r(fx + 1 + w, fy + 2, 1, 12, O);
+      }
+      bigFlag(-86, 50, 24);
+      bigFlag(50, 38, 28);
+      bigFlag(170, 46, 22);
+      // 中段の小さめ旗
+      r(-30, 56, 2, 28, '#7a4a20');
+      r(-28, 58, 12, 3, '#dac030');
+      r(-28, 61, 12, 3, '#3aae6a');
+      r(-28, 64, 12, 3, '#c83040');
+      r(116, 58, 2, 28, '#7a4a20');
+      r(118, 60, 14, 3, '#dac030');
+      r(118, 63, 14, 3, '#3aae6a');
+      r(118, 66, 14, 3, '#c83040');
+
+      // ====== 前景：スピーカースタック＆ミキシングコンソール ======
+      // 左スピーカースタック
+      r(-130, 92, 36, 32, '#0a0a0a');
+      r(-130, 92, 36, 2, '#3a3a3a');
+      r(-130, 122, 36, 2, '#1a1a1a');
+      r(-128, 96, 14, 14, '#1a1a1a');
+      r(-128, 96, 14, 2, '#5a5a5a');
+      r(-112, 96, 12, 12, '#1a1a1a');
+      r(-112, 96, 12, 2, '#5a5a5a');
+      r(-128, 112, 32, 8, '#2a2a2a');
+      r(-128, 112, 32, 1, '#5a5a5a');
+      // ロゴ
+      r(-122, 116, 2, 2, '#dac030');
+      r(-118, 116, 2, 2, '#dac030');
+      r(-114, 116, 2, 2, '#dac030');
+      // 右スピーカースタック
+      r(218, 92, 36, 32, '#0a0a0a');
+      r(218, 92, 36, 2, '#3a3a3a');
+      r(218, 122, 36, 2, '#1a1a1a');
+      r(220, 96, 14, 14, '#1a1a1a');
+      r(220, 96, 14, 2, '#5a5a5a');
+      r(236, 96, 12, 12, '#1a1a1a');
+      r(236, 96, 12, 2, '#5a5a5a');
+      r(220, 112, 32, 8, '#2a2a2a');
+      r(220, 112, 32, 1, '#5a5a5a');
+      r(226, 116, 2, 2, '#dac030');
+      r(230, 116, 2, 2, '#dac030');
+      r(234, 116, 2, 2, '#dac030');
+
+      // ミキシングコンソール（中央前景）
+      r(-90, 110, 200, 14, '#1a1a2a');
+      r(-90, 110, 200, 2, '#4a4a5a');
+      r(-90, 122, 200, 2, '#0a0a14');
+      // フェーダー＆つまみ
+      for (let i = 0; i < 30; i++) {
+        const cx = -85 + i * 7;
+        r(cx, 113, 1, 7, '#dac030');
+        r(cx, 113, 1, 1, '#fff088');
+        r(cx - 1, 116, 3, 2, '#3a3a4a');
+      }
+      // ケーブル
+      r(-130, 124, 384, 2, '#0a0a0a');
     } else {
-      // 観衆チビ（4色変えで出現）
+      // 雑魚（4種類の名前で別の見た目／4色パレット）
+      const enemyName = state.enemy ? state.enemy.name : '';
+      let kind = 'citizen';
+      if (enemyName.includes('老婦人')) kind = 'oldwoman';
+      else if (enemyName.includes('おじさん')) kind = 'middleman';
+      else if (enemyName.includes('学生')) kind = 'student';
       const palettes = [
         { hair: '#7a3a20', cloth: '#c83040', accent: '#dac030' },
         { hair: '#3a2a1a', cloth: '#3aae6a', accent: '#fff8e0' },
         { hair: '#dac030', cloth: '#3a6abe', accent: '#c83030' },
         { hair: '#a06040', cloth: '#9a4ade', accent: '#3aae6a' },
       ];
-      // 敵生成時に固定された paletteIdx を使う（歌うたびに色が変わるバグ防止）
-      const palIdx = (state.enemy && state.enemy.paletteIdx != null)
-        ? state.enemy.paletteIdx
-        : 0;
+      const palIdx = (state.enemy && state.enemy.paletteIdx != null) ? state.enemy.paletteIdx : 0;
       const p = palettes[palIdx % 4];
-      const skin  = '#f0c89a', skinD = '#c89070';
-      const hair  = p.hair, hairD = darken(p.hair, 0.6), hairH = lighten(p.hair, 1.4);
-      const cloth = p.cloth, clothD = darken(p.cloth, 0.65), clothH = lighten(p.cloth, 1.3);
+      const skin = '#f0c89a', skinD = '#c89070';
+      let hair = p.hair, cloth = p.cloth, accent = p.accent;
+      let pants = '#3a3040';
+      if (kind === 'oldwoman')      { hair = '#cccccc'; cloth = '#6a3a8a'; pants = '#4a2860'; }
+      else if (kind === 'middleman'){ hair = '#5a3a20'; cloth = '#3a4a6a'; pants = '#2a2030'; }
+      else if (kind === 'student')  { hair = '#2a1a10'; cloth = '#3a6a8a'; pants = '#3a3a4a'; }
+      const hairD = darken(hair, 0.6), hairH = lighten(hair, 1.4);
+      const clothD = darken(cloth, 0.65), clothH = lighten(cloth, 1.3);
 
-      // ============ 大きな丸頭（48x40） ============
-      // 頭アウトライン
-      r(38, 6,  44, 2, O);
-      r(34, 8,  52, 2, O);
-      r(30, 10, 60, 4, O);
-      r(28, 14, 2, 36, O); r(90, 14, 2, 36, O);
-      r(30, 50, 60, 2, O);
-      r(34, 52, 52, 2, O);
-      r(38, 54, 44, 2, O);
-
-      // 髪（頭の上半分）
-      r(34, 10, 52, 2, hair);
-      r(30, 12, 60, 16, hair);
-      // 横の髪（耳辺り）
-      r(28, 28, 4, 16, hair);
-      r(88, 28, 4, 16, hair);
-      // 髪のハイライト
-      r(40, 14, 12, 2, hairH);
-      r(60, 14, 8, 2, hairH);
-      r(36, 24, 48, 2, hairD); // 髪の下端
-
-      // 顔
-      r(32, 26, 56, 26, skin);
-      r(32, 50, 56, 2, skinD);
-
+      // ============ 頭部（32x32：スマート比） ============
+      r(46, 6, 28, 2, O);
+      r(44, 8, 32, 2, O);
+      r(42, 10, 36, 2, O);
+      r(42, 12, 2, 28, O); r(76, 12, 2, 28, O);
+      r(44, 38, 32, 2, O);
+      r(44, 12, 32, 26, skin);
+      r(44, 36, 32, 2, skinD);
+      // 髪型（kindで分岐）
+      if (kind === 'middleman') {
+        r(46, 12, 28, 4, skin); // 額（半ハゲ）
+        r(46, 14, 6, 8, hair); r(70, 14, 6, 8, hair);
+        r(46, 16, 28, 2, hair);
+        r(48, 30, 24, 8, hair); // 髭
+        r(50, 32, 20, 4, hairD);
+      } else if (kind === 'oldwoman') {
+        // 頭巾
+        r(40, 8, 40, 4, accent);
+        r(40, 12, 40, 14, accent);
+        r(40, 12, 4, 14, darken(accent, 0.7));
+        r(76, 12, 4, 14, darken(accent, 0.7));
+        r(48, 12, 8, 2, lighten(accent, 1.3));
+        r(46, 26, 28, 2, hairD); // 頭巾の影
+      } else if (kind === 'student') {
+        // パーカーフード（後ろに垂らす）
+        r(38, 12, 44, 6, cloth);
+        r(38, 12, 44, 2, clothD);
+        r(46, 14, 28, 6, hair);
+        r(48, 14, 24, 2, hairH);
+      } else {
+        // 通りすがり：標準短髪
+        r(46, 12, 28, 6, hair);
+        r(48, 12, 24, 2, hairH);
+        r(44, 14, 4, 12, hair); r(72, 14, 4, 12, hair);
+      }
       // 目
       if (expr === 'crying') {
-        // 弱った目（線）
-        r(38, 34, 10, 2, O);
-        r(72, 34, 10, 2, O);
-        // 涙（流れ落ちる）
-        r(40, 36, 4, 16, '#5aaee8');
-        r(74, 36, 4, 16, '#5aaee8');
-        r(41, 36, 2, 12, '#aadaee');
-        r(75, 36, 2, 12, '#aadaee');
-        // 口（へ字）
-        r(50, 46, 20, 2, O);
-        r(54, 44, 12, 2, O);
-        // 頬の赤
-        ctx.fillStyle = 'rgba(255,150,160,0.45)';
-        ctx.fillRect(sx + 30, sy + 42, 8, 4);
-        ctx.fillRect(sx + 82, sy + 42, 8, 4);
+        r(50, 22, 4, 2, O); r(66, 22, 4, 2, O);
+        r(50, 25, 3, 10, '#5aaee8'); r(66, 25, 3, 10, '#5aaee8');
       } else if (expr === 'angry') {
-        // 怒り眉
-        r(34, 28, 14, 3, O);
-        r(72, 28, 14, 3, O);
-        r(36, 26, 10, 2, O);
-        r(74, 26, 10, 2, O);
-        // 細目
-        r(38, 34, 10, 4, O);
-        r(72, 34, 10, 4, O);
-        r(39, 34, 4, 2, '#fff');
-        r(73, 34, 4, 2, '#fff');
-        r(40, 36, 2, 2, O);
-        r(74, 36, 2, 2, O);
-        // への字口
-        r(48, 46, 24, 2, O);
-        r(46, 44, 4, 2, O); r(70, 44, 4, 2, O);
+        r(48, 20, 7, 2, O); r(65, 20, 7, 2, O);
+        r(50, 23, 4, 3, O); r(66, 23, 4, 3, O);
       } else {
-        // 普通（大きな丸目）
-        r(38, 32, 10, 10, O);
-        r(72, 32, 10, 10, O);
-        r(40, 34, 6, 6, '#fff');
-        r(74, 34, 6, 6, '#fff');
-        r(42, 36, 3, 3, O);
-        r(76, 36, 3, 3, O);
-        r(43, 36, 1, 1, '#fff');
-        r(77, 36, 1, 1, '#fff');
-        // 口（普通）
-        r(54, 46, 12, 2, O);
-        r(56, 48, 8, 2, '#aa4040');
-        // 頬の赤
-        ctx.fillStyle = 'rgba(255,150,160,0.5)';
-        ctx.fillRect(sx + 30, sy + 42, 8, 4);
-        ctx.fillRect(sx + 82, sy + 42, 8, 4);
+        r(50, 23, 4, 4, O); r(66, 23, 4, 4, O);
+        r(51, 24, 2, 2, '#fff'); r(67, 24, 2, 2, '#fff');
       }
+      // 鼻
+      r(59, 27, 2, 4, skinD);
+      // 口
+      if (expr === 'angry') {
+        r(54, 32, 12, 2, O);
+        r(52, 30, 4, 2, O); r(64, 30, 4, 2, O);
+      } else if (expr === 'crying') {
+        r(54, 33, 12, 2, O);
+        r(52, 32, 4, 1, O); r(64, 32, 4, 1, O);
+      } else {
+        r(56, 32, 8, 2, O);
+        r(56, 33, 8, 1, '#aa4040');
+      }
+      // 頬の赤
+      ctx.fillStyle = 'rgba(255,150,160,0.4)';
+      ctx.fillRect(sx + 44, sy + 30, 4, 4);
+      ctx.fillRect(sx + 72, sy + 30, 4, 4);
 
-      // リボン（右上）
-      r(70, 14, 10, 8, p.accent);
-      r(69, 13, 12, 1, O);
-      r(69, 22, 12, 1, O);
-      r(70, 14, 10, 1, lighten(p.accent, 1.4));
+      // ============ 首 ============
+      r(56, 40, 8, 6, skin);
+      r(54, 40, 2, 6, O); r(64, 40, 2, 6, O);
 
-      // 首
-      r(50, 56, 20, 4, skin);
-      r(48, 56, 2, 4, O); r(70, 56, 2, 4, O);
-
-      // 体
-      r(30, 60, 60, 2, O);          // 肩アウトライン
-      r(28, 62, 2, 42, O); r(90, 62, 2, 42, O);
-      r(30, 104, 60, 2, O);          // 腰
-      r(30, 62, 60, 42, cloth);
-      r(30, 62, 60, 4, clothH);      // 肩ハイライト
-      r(30, 100, 60, 4, clothD);     // 裾シャドウ
-
-      // 襟
-      r(50, 60, 20, 6, '#fff8e0');
-      r(48, 60, 2, 6, O); r(70, 60, 2, 6, O);
-      r(54, 66, 12, 2, O);
-
-      // ボタン2列
-      r(58, 72, 4, 4, p.accent);
-      r(58, 84, 4, 4, p.accent);
-      r(58, 72, 4, 1, O); r(58, 76, 4, 1, O);
-      r(58, 84, 4, 1, O); r(58, 88, 4, 1, O);
-
-      // 腕（横で組む = skeptical pose）
-      r(18, 70, 12, 2, O);
-      r(90, 70, 12, 2, O);
-      r(18, 72, 14, 22, cloth);
-      r(88, 72, 14, 22, cloth);
-      r(18, 92, 14, 2, O);
-      r(88, 92, 14, 2, O);
-      r(18, 72, 2, 22, O); r(30, 72, 2, 22, O);
-      r(88, 72, 2, 22, O); r(102, 72, 2, 22, O);
-      // 腕の前（胸の前で組む）
-      r(30, 80, 28, 2, O);
-      r(62, 80, 28, 2, O);
-      r(30, 82, 28, 10, cloth);
-      r(62, 82, 28, 10, cloth);
-      r(30, 92, 28, 2, O);
-      r(62, 92, 28, 2, O);
-      // 手
-      r(54, 84, 8, 8, skin);
-      r(54, 84, 8, 1, O); r(54, 92, 8, 1, O);
-      r(54, 84, 1, 8, O); r(62, 84, 1, 8, O);
-      r(56, 86, 4, 4, skinD);
-
-      // 脚（短い）
-      r(42, 106, 12, 12, O);
-      r(66, 106, 12, 12, O);
-      r(44, 106, 8, 10, '#3a2a1a');
-      r(68, 106, 8, 10, '#3a2a1a');
-      r(40, 116, 16, 4, O);
-      r(64, 116, 16, 4, O);
-      r(42, 116, 12, 3, '#1a0a08');
-      r(66, 116, 12, 3, '#1a0a08');
+      // ============ 胴・腕・脚（kindで分岐） ============
+      if (kind === 'oldwoman') {
+        // ロングドレス
+        r(38, 46, 44, 36, cloth);
+        r(38, 46, 44, 1, O);
+        r(37, 46, 1, 36, O); r(82, 46, 1, 36, O);
+        r(38, 46, 44, 3, clothH);
+        r(38, 76, 44, 4, accent); // ベルト
+        // ロングスカート（広がる）
+        r(36, 82, 48, 6, cloth);
+        r(34, 88, 52, 6, cloth);
+        r(32, 94, 56, 6, cloth);
+        r(30, 100, 60, 8, cloth);
+        r(30, 108, 60, 6, clothD);
+        r(30, 113, 60, 1, O);
+        // 腕（左：自由・右：杖）
+        r(34, 48, 4, 28, cloth);
+        r(82, 48, 4, 28, cloth);
+        r(34, 76, 6, 6, skin); r(80, 76, 6, 6, skin);
+        // 杖
+        r(86, 50, 3, 64, '#5a3a20');
+        r(86, 48, 3, 4, '#3a2010');
+      } else {
+        const bodyW = (kind === 'middleman') ? 44 : (kind === 'student') ? 36 : 40;
+        const bodyX = 60 - Math.floor(bodyW / 2);
+        // 胴
+        r(bodyX, 46, bodyW, 38, cloth);
+        r(bodyX - 1, 46, 1, 38, O); r(bodyX + bodyW, 46, 1, 38, O);
+        r(bodyX, 46, bodyW, 1, O);
+        r(bodyX, 46, bodyW, 3, clothH);
+        if (kind === 'middleman') {
+          // ベスト
+          r(bodyX + 4, 50, bodyW - 8, 30, accent);
+          r(bodyX + 4, 50, bodyW - 8, 1, darken(accent, 0.6));
+          // ボタン
+          r(59, 56, 2, 2, '#dac030');
+          r(59, 64, 2, 2, '#dac030');
+          r(59, 72, 2, 2, '#dac030');
+        } else if (kind === 'student') {
+          // パーカーの紐
+          r(58, 48, 4, 18, '#fff8e0');
+          r(58, 48, 4, 1, O);
+          // ロゴ的な装飾
+          r(54, 60, 12, 6, accent);
+          r(56, 62, 8, 2, '#fff');
+          // リュックの肩紐（左右）
+          r(40, 48, 2, 32, darken(accent, 0.5));
+          r(78, 48, 2, 32, darken(accent, 0.5));
+        } else {
+          // 襟
+          r(54, 46, 12, 6, '#fff8e0');
+          r(54, 52, 12, 1, O);
+        }
+        // ベルト
+        r(bodyX, 80, bodyW, 4, '#3a2820');
+        r(bodyX, 80, bodyW, 1, O);
+        // パンツ（左右）
+        r(46, 84, 14, 30, pants);
+        r(60, 84, 14, 30, pants);
+        r(46, 84, 14, 1, lighten(pants, 1.5));
+        r(60, 84, 14, 1, lighten(pants, 1.5));
+        r(45, 84, 1, 30, O); r(60, 84, 1, 30, O);
+        r(60, 84, 1, 30, O); r(74, 84, 1, 30, O);
+        // 靴
+        r(43, 114, 18, 5, O);
+        r(59, 114, 18, 5, O);
+        r(44, 115, 16, 3, '#1a0a08');
+        r(60, 115, 16, 3, '#1a0a08');
+        // 腕
+        r(bodyX - 8, 48, 8, 32, cloth);
+        r(bodyX + bodyW, 48, 8, 32, cloth);
+        r(bodyX - 9, 48, 1, 32, O);
+        r(bodyX + bodyW + 8, 48, 1, 32, O);
+        r(bodyX - 8, 48, 8, 3, clothH);
+        r(bodyX + bodyW, 48, 8, 3, clothH);
+        // 手
+        r(bodyX - 9, 78, 10, 6, skin); r(bodyX - 9, 78, 10, 1, O); r(bodyX - 9, 83, 10, 1, O);
+        r(bodyX + bodyW - 1, 78, 10, 6, skin);
+        r(bodyX + bodyW - 1, 78, 10, 1, O); r(bodyX + bodyW - 1, 83, 10, 1, O);
+      }
     }
   }
 
@@ -2591,6 +3569,12 @@
     ctx.fillStyle = '#dac030'; ctx.fillRect(40, 130, CANVAS_W - 80, 4);
     ctx.fillStyle = '#3aae5a'; ctx.fillRect(40, 136, CANVAS_W - 80, 4);
     ctx.fillStyle = '#c83030'; ctx.fillRect(40, 142, CANVAS_W - 80, 4);
+    // フィクション注記（下部に小さく）
+    ctx.fillStyle = '#888';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('※このゲームに登場する人物・団体・物語は', CANVAS_W / 2, CANVAS_H - 24);
+    ctx.fillText('すべてフィクションです', CANVAS_W / 2, CANVAS_H - 10);
     ctx.textAlign = 'left';
   }
 
@@ -2658,7 +3642,14 @@
     state.scene = 'newgame';
     state.titleStep = 'name1';
     state.tmp = { names: ['', '', ''], looks: ['m1', 'f5', 'm4'], whoIdx: 0, kanaR: 0, kanaC: 0, lookIdx: 0, confirmSel: 1 };
+    document.body.classList.add('newgame-mode');
     renderNewGameStep();
+  }
+
+  // ニューゲーム画面の十字キー/A/Bボタン → 既存のキー入力ハンドラに合成イベントで橋渡し
+  function dispatchSyntheticKey(key) {
+    try { window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: false })); }
+    catch (e) {}
   }
 
   function renderNewGameStep() {
@@ -2710,7 +3701,7 @@
     let html = '';
 
     if (state.titleStep.startsWith('name')) {
-      html += '<div style="font-size:12px;margin-bottom:6px;color:#aaa;">名前（最大6文字）／矢印キーで選択・Z/Enterで入力・X/BSで消去・0で決定</div>';
+      html += '<div style="font-size:12px;margin-bottom:6px;color:#aaa;">名前（最大6文字）／矢印で選択（けす・けっていにも移動可）・Z/Enterで実行</div>';
       html += `<div style="font-size:14px;margin-bottom:8px;background:#222;padding:6px 10px;border-radius:4px;min-height:22px;">${state.tmp.names[idx] || ''}<span style="color:#888;">_</span></div>`;
       html += '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:3px;font-size:13px;">';
       KANA.forEach((row, ri) => {
@@ -2726,26 +3717,30 @@
       });
       html += '</div>';
       html += '<div style="display:flex;gap:6px;margin-top:6px;">';
-      html += '<button data-act="bs" style="flex:1;padding:8px;background:#aa3030;border:0;border-radius:4px;color:#fff;cursor:pointer;">けす(X)</button>';
-      html += '<button data-act="ok" style="flex:2;padding:8px;background:#3aae5a;border:0;border-radius:4px;color:#fff;cursor:pointer;">けってい(0)</button>';
+      const onBs = (state.tmp.kanaR === KANA.length && state.tmp.kanaC === 0);
+      const onOk = (state.tmp.kanaR === KANA.length && state.tmp.kanaC === 1);
+      const bdBs = onBs ? '2px solid #fff' : '0';
+      const bdOk = onOk ? '2px solid #fff' : '0';
+      html += `<button data-act="bs" data-r="${KANA.length}" data-c="0" style="flex:1;padding:8px;background:#aa3030;border:${bdBs};border-radius:4px;color:#fff;cursor:pointer;">けす</button>`;
+      html += `<button data-act="ok" data-r="${KANA.length}" data-c="1" style="flex:2;padding:8px;background:#3aae5a;border:${bdOk};border-radius:4px;color:#fff;cursor:pointer;">けってい</button>`;
       html += '</div>';
     } else if (state.titleStep.startsWith('look')) {
       html += '<div style="font-size:12px;margin-bottom:6px;color:#aaa;">12種類から見た目をえらぶ／矢印で選択・Z/Enterで決定</div>';
       html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;">';
-      LOOKS.forEach((L, li) => {
+      PLAYER_LOOKS.forEach((L, li) => {
         const sel = L.id === state.tmp.looks[idx];
         const isCur = li === state.tmp.lookIdx;
         const bg = sel ? '#dac030' : (isCur ? '#555' : '#222');
         const bd = isCur ? '2px solid #fff' : '1px solid #555';
-        html += `<button data-look="${L.id}" data-li="${li}" style="padding:4px;background:${bg};color:${sel ? '#000' : '#fff'};border:${bd};border-radius:4px;font-size:11px;cursor:pointer;">${L.id}<br>${L.sex === 'm' ? '♂' : '♀'}</button>`;
+        html += `<button data-look="${L.id}" data-li="${li}" style="padding:4px;background:${bg};color:${sel ? '#000' : '#fff'};border:${bd};border-radius:4px;font-size:13px;cursor:pointer;">${lookLabel(L.id)}</button>`;
       });
       html += '</div>';
-      html += `<div style="margin-top:6px;font-size:11px;color:#aaa;">選択中: ${lookById(state.tmp.looks[idx]).name}</div>`;
+      html += `<div style="margin-top:6px;font-size:11px;color:#aaa;">選択中: ${lookLabel(state.tmp.looks[idx])}</div>`;
       html += '<button data-act="ok" style="margin-top:8px;width:100%;padding:8px;background:#3aae5a;border:0;border-radius:4px;color:#fff;cursor:pointer;">この見た目で決定(Z)</button>';
     } else if (state.titleStep === 'confirm') {
       html += '<div style="font-size:13px;margin-bottom:8px;">この3人で旅立ちますか？／矢印で選択・Z/Enterで決定</div>';
       for (let i = 0; i < 3; i++) {
-        html += `<div style="margin:4px 0;font-size:13px;">${['主人公','仲間1','仲間2'][i]}: <b>${state.tmp.names[i]}</b>（${lookById(state.tmp.looks[i]).name}）</div>`;
+        html += `<div style="margin:4px 0;font-size:13px;">${['主人公','仲間1','仲間2'][i]}: <b>${state.tmp.names[i]}</b>（${lookLabel(state.tmp.looks[i])}）</div>`;
       }
       const cs = state.tmp.confirmSel || 0;
       const bdBack = cs === 0 ? '2px solid #fff' : '0';
@@ -2758,6 +3753,18 @@
 
     d.innerHTML = html;
     bindNewGameUI();
+    // 選択中ボタンを可視範囲に自動スクロール（スマホで十字キー操作時の見切れ対策）
+    let selBtn = null;
+    if (state.titleStep.startsWith('name')) {
+      selBtn = d.querySelector('[data-r="' + state.tmp.kanaR + '"][data-c="' + state.tmp.kanaC + '"]');
+    } else if (state.titleStep.startsWith('look')) {
+      selBtn = d.querySelector('[data-li="' + state.tmp.lookIdx + '"]');
+    } else if (state.titleStep === 'confirm') {
+      selBtn = d.querySelector('[data-act="' + (state.tmp.confirmSel === 0 ? 'back' : 'go') + '"]');
+    }
+    if (selBtn && typeof selBtn.scrollIntoView === 'function') {
+      try { selBtn.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) {}
+    }
   }
 
   function bindNewGameUI() {
@@ -2816,17 +3823,24 @@
     state.party[1].name = state.tmp.names[1]; state.party[1].look = state.tmp.looks[1];
     state.party[2].name = state.tmp.names[2]; state.party[2].look = state.tmp.looks[2];
     // あきちゃん・みほさんは固有キャラ（NPCS定義のまま、上書きしない）
+    // エンディング→タイトル→はじめから の場合 MAP 配列が Vingis 等のまま残っているので
+    // 必ずヴィリニュスを再構築する
+    buildVilnius();
+    rebuildNPCs('vilnius');
+    if (typeof rebuildSongs === 'function') rebuildSongs();
     resetFollowersToLeader();
+    document.body.classList.remove('newgame-mode');
     state.scene = 'field';
+    render(); // ニューゲーム画面（「みっつ目の見た目をえらぶ」表示など）をクリアしてマップを描画
     audio.playBGM('field');
     saveGame();
     setDialog([
       'あなたは AKクワイア のメンバーとして、',
       'リトアニア音楽の祭典「ダイヌシュベンテ」で歌うため、',
-      'はるばる ヴィリニュス にやってきた。',
-      'ところが——歌詞をすっかり忘れてしまった！',
+      'はるばる リトアニア・ヴィリニュス にやってきた。',
+      'ところが——歌う曲の歌詞をすっかり忘れてしまった！',
       'リトアニア国内に散らばった歌詞のピースを集めて、祭典で歌い上げよう。',
-      '（操作：矢印 or WASD で移動、A=決定/話す、B=歌詞の記憶を確認）',
+      '（操作：矢印 で移動、A=決定/話す、B=歌詞の記憶を確認）',
       '（緑の草むらでは戦闘あり。建物・人にAで話しかけよう）',
     ], () => {
       // オープニング閉幕後、目の前のあきちゃんに自動で話しかける
@@ -5299,20 +6313,141 @@
   function renderBattle() {
     clear('#1a1a2a');
     const now = performance.now();
-    // 敵側の背景（夜空）
-    ctx.fillStyle = '#2a3a5a';
-    ctx.fillRect(0, 0, CANVAS_W, 180);
-    // 雲
-    ctx.fillStyle = '#5a8aae';
-    for (let i = 0; i < 8; i++) {
-      ctx.fillRect(30 + i * 48, 36 + (i % 2) * 24, 18, 10);
-    }
-    // 星
-    ctx.fillStyle = '#fff';
-    for (let i = 0; i < 20; i++) {
-      const x = (i * 79) % CANVAS_W;
-      const y = (i * 31) % 100;
-      ctx.fillRect(x, y, 1, 1);
+    if (state.enemy && state.enemy.type === 'audience_30k') {
+      // ===== ラスボス：野外フェス（昼空） =====
+      // 空グラデーション
+      const sg = ctx.createLinearGradient(0, 0, 0, 180);
+      sg.addColorStop(0, '#6aa8e0');
+      sg.addColorStop(0.6, '#a8d4f0');
+      sg.addColorStop(1, '#dceeff');
+      ctx.fillStyle = sg;
+      ctx.fillRect(0, 0, CANVAS_W, 180);
+      // 雲（ふわっとした塊）
+      const clouds = [[20,18,60,8],[110,10,72,8],[210,22,80,8],[300,14,68,8],[60,38,40,6],[260,40,52,6]];
+      ctx.fillStyle = '#fff';
+      clouds.forEach(([cx,cy,cw,ch]) => {
+        ctx.fillRect(cx, cy, cw, ch);
+        ctx.fillRect(cx + 4, cy - 3, cw - 8, 3);
+        ctx.fillRect(cx + 8, cy + ch, cw - 16, 2);
+      });
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      clouds.forEach(([cx,cy,cw,ch]) => {
+        ctx.fillRect(cx + 6, cy + 2, cw - 12, 2);
+      });
+      // 紙吹雪
+      const conf = ['#ffe040','#ff60a0','#60c0ff','#a0ff60','#ff8040','#fff','#dac030','#3aae6a','#c83040'];
+      for (let i = 0; i < 60; i++) {
+        ctx.fillStyle = conf[i % conf.length];
+        const cx = (i * 47) % CANVAS_W;
+        const cy = (i * 13) % 110;
+        ctx.fillRect(cx, cy, 2, 2);
+      }
+      // 遠景の山並み
+      ctx.fillStyle = '#7aa0c0';
+      for (let i = 0; i < 24; i++) {
+        const mx = i * 18, mh = 14 + (i % 3) * 6;
+        ctx.fillRect(mx, 60 - mh, 18, mh);
+      }
+      // 遠景の木（横一列）
+      ctx.fillStyle = '#2a4a2a';
+      ctx.fillRect(0, 70, CANVAS_W, 8);
+      for (let i = 0; i < 24; i++) {
+        const tx = i * 16;
+        ctx.fillStyle = (i % 2) ? '#1a3a1a' : '#2a4a2a';
+        ctx.fillRect(tx, 64, 6, 8);
+        ctx.fillStyle = '#3a5a3a';
+        ctx.fillRect(tx + 2, 62, 3, 4);
+      }
+      // ===== ステージ（中央奥） =====
+      const stageX = 110, stageY = 56, stageW = 164, stageH = 36;
+      // トラス（鉄骨）
+      ctx.fillStyle = '#aaa';
+      ctx.fillRect(stageX - 4, stageY - 14, stageW + 8, 3);
+      ctx.fillRect(stageX - 4, stageY - 14, 4, stageH + 18);
+      ctx.fillRect(stageX + stageW, stageY - 14, 4, stageH + 18);
+      ctx.fillStyle = '#888';
+      for (let i = 0; i < 12; i++) {
+        ctx.fillRect(stageX + i * 14, stageY - 12, 2, 2);
+      }
+      // ステージ幕（黒背景）
+      ctx.fillStyle = '#0a0a18';
+      ctx.fillRect(stageX, stageY - 8, stageW, stageH + 6);
+      ctx.fillStyle = '#2a2a4a';
+      ctx.fillRect(stageX, stageY - 8, stageW, 2);
+      // スクリーン
+      ctx.fillStyle = '#1a1a3a';
+      ctx.fillRect(stageX + 12, stageY - 4, stageW - 24, stageH - 8);
+      ctx.fillStyle = '#5a5a8a';
+      ctx.fillRect(stageX + 12, stageY - 4, stageW - 24, 2);
+      // スクリーン内のシルエット
+      ctx.fillStyle = '#fadcb0';
+      ctx.fillRect(stageX + stageW / 2 - 6, stageY + 2, 12, 14);
+      ctx.fillStyle = '#3a2a1a';
+      ctx.fillRect(stageX + stageW / 2 - 6, stageY + 2, 12, 5);
+      ctx.fillStyle = '#aa3030';
+      ctx.fillRect(stageX + stageW / 2 - 12, stageY + 16, 24, 8);
+      // ステージ床
+      ctx.fillStyle = '#3a2a1a';
+      ctx.fillRect(stageX, stageY + stageH - 8, stageW, 6);
+      ctx.fillStyle = '#1a0a08';
+      ctx.fillRect(stageX, stageY + stageH - 2, stageW, 2);
+      // ===== サイドテント =====
+      // 左テント
+      ctx.fillStyle = '#dadada';
+      for (let h = 0; h < 18; h++) {
+        const w = 18 - h;
+        ctx.fillRect(40 - w, 50 + h, w * 2, 1);
+      }
+      ctx.fillStyle = '#fafafa';
+      ctx.fillRect(20, 68, 40, 24);
+      ctx.fillStyle = '#aaa';
+      ctx.fillRect(20, 68, 40, 2);
+      ctx.fillRect(20, 90, 40, 2);
+      ctx.fillStyle = '#dac030';
+      ctx.fillRect(40, 50, 1, 4);
+      // 右テント
+      ctx.fillStyle = '#dadada';
+      for (let h = 0; h < 18; h++) {
+        const w = 18 - h;
+        ctx.fillRect(344 - w, 50 + h, w * 2, 1);
+      }
+      ctx.fillStyle = '#fafafa';
+      ctx.fillRect(324, 68, 40, 24);
+      ctx.fillStyle = '#aaa';
+      ctx.fillRect(324, 68, 40, 2);
+      ctx.fillRect(324, 90, 40, 2);
+      ctx.fillStyle = '#dac030';
+      ctx.fillRect(344, 50, 1, 4);
+      // ===== ステージ脇のリトアニア国旗 =====
+      const flagPos = [[stageX - 22, stageY - 4], [stageX + stageW + 18, stageY - 4],
+                        [stageX - 38, stageY + 8], [stageX + stageW + 34, stageY + 8]];
+      flagPos.forEach(([fx, fy]) => {
+        // ポール
+        ctx.fillStyle = '#aaa';
+        ctx.fillRect(fx, fy - 18, 1, 36);
+        // 旗（黄/緑/赤）
+        ctx.fillStyle = '#dac030'; ctx.fillRect(fx + 1, fy - 18, 14, 4);
+        ctx.fillStyle = '#3aae6a'; ctx.fillRect(fx + 1, fy - 14, 14, 4);
+        ctx.fillStyle = '#c83040'; ctx.fillRect(fx + 1, fy - 10, 14, 4);
+        ctx.fillStyle = '#fff'; ctx.fillRect(fx + 1, fy - 18, 14, 1);
+      });
+      // ===== 観衆エリアの地面 =====
+      ctx.fillStyle = '#5a4a3a';
+      ctx.fillRect(0, 92, CANVAS_W, 88);
+    } else {
+      // 通常戦闘の夜空
+      ctx.fillStyle = '#2a3a5a';
+      ctx.fillRect(0, 0, CANVAS_W, 180);
+      ctx.fillStyle = '#5a8aae';
+      for (let i = 0; i < 8; i++) {
+        ctx.fillRect(30 + i * 48, 36 + (i % 2) * 24, 18, 10);
+      }
+      ctx.fillStyle = '#fff';
+      for (let i = 0; i < 20; i++) {
+        const x = (i * 79) % CANVAS_W;
+        const y = (i * 31) % 100;
+        ctx.fillRect(x, y, 1, 1);
+      }
     }
     // 敵（被弾時にシェイク）
     let ex = 130, ey = 30;
@@ -5457,13 +6592,16 @@
   }
 
   function render() {
+    // 戦闘中はキャンバスを縮めてコマンドメニューを広げる（コマンドがスクロールで見切れるのを防ぐ）
+    const inBattle = (state.scene === 'battle' || state.scene === 'win' || state.scene === 'lose');
+    document.body.classList.toggle('battle-mode', inBattle);
     if (state.scene === 'title') return; // titleはhtml側
     if (state.scene === 'newgame') return;
     if (state.scene === 'buildingInfo') { renderBuildingInfo(); updateStatus(); return; }
     if (state.scene === 'foodInfo') { renderFoodInfo(); updateStatus(); return; }
     if (state.scene === 'overworld') { renderOverworld(); updateStatus(); return; }
-    if (state.scene === 'battle' || state.scene === 'win' || state.scene === 'lose') renderBattle();
-    else {
+    if (inBattle) { renderBattle(); updateStatus(); return; }
+    {
       // フィールド系シーンに入ったらNPC初期化＋ループ開始（多重呼び出しは無視される）
       if (typeof initNPCWalk === 'function' && NPCS[0].homeX === undefined) initNPCWalk();
       if (typeof startFieldLoop === 'function') startFieldLoop();
@@ -5512,7 +6650,16 @@
     'Aciu': 'アチュー',
     'Taip': 'タイプ',
     'Iki': 'イキ',
+    'Iki pasimatymo': 'イキ・パシマティモ',
+    'Daina': 'ダイナ',
+    'Knyga': 'クニガ',
+    'Vanduo': 'ヴァンドゥオ',
+    'Malda': 'マルダ',
+    'Sapnas': 'サプナス',
     'Ne': 'ニェ',
+    'Prašau': 'プラシャウ',
+    'Prasau': 'プラシャウ',
+    'Gerai': 'ゲライ',
   };
   const LT_PHRASES = Object.keys(LT_KATAKANA);
   // 長いフレーズから先に処理（部分一致による誤置換を避ける）
@@ -5631,30 +6778,30 @@
       [349,2],[523,2],[440,4],[523,2],[440,2],[349,4],[null,2],
       [392,2],[523,2],[466,4],[440,2],[349,2],[392,4],[null,2],
     ]},
-    ending: { tempo: 110, wave: 'triangle', gain: 0.35, notes: [
-      // 1: ドレミーレードーソーーーファーーー
-      [523,1],[587,1],[659,2],[587,1],[523,2],[784,4],[698,4],
-      // 2: ミレソーファーミーレーーーーーーー
+    ending: { tempo: 110, wave: 'triangle', gain: 0.35, oneshot: true, notes: [
+      // 1: C5 D5 E5(2) D5(2) C5(2) G5(4) F5(4)
+      [523,1],[587,1],[659,2],[587,2],[523,2],[784,4],[698,4],
+      // 2: E5 D5 G5(2) F5(2) E5(2) D5(8)
       [659,1],[587,1],[784,2],[698,2],[659,2],[587,8],
-      // 3: ミファソーファーーーラソーーーファーー
-      [659,1],[698,1],[784,2],[698,4],[880,1],[784,4],[698,3],
-      // 4: ミレミーソーファーミーーーーーーー
-      [659,1],[587,1],[659,2],[784,2],[698,2],[659,8],
-      // 5: ソーソーーーソーーファミーーーレーーー
-      [784,2],[784,4],[784,3],[698,1],[659,4],[587,4],
-      // 6: ドレミーファーラーソーーーーー上のドー
+      // 3: E5 F5 G5(2) F5(3) A5 G5(4) F5(4)
+      [659,1],[698,1],[784,2],[698,3],[880,1],[784,4],[698,4],
+      // 4: E5 D5 E5(2) G5(2) F5(2) E5(6) G5(2)
+      [659,1],[587,1],[659,2],[784,2],[698,2],[659,6],[784,2],
+      // 5: G5(4) G5(3) F5 E5(4) D5(4)
+      [784,4],[784,3],[698,1],[659,4],[587,4],
+      // 6: C5 D5 E5(2) F5(2) A5(2) G5(6) C6(2)
       [523,1],[587,1],[659,2],[698,2],[880,2],[784,6],[1047,2],
-      // 7: ドーーーシーーラソーーーファーーー
-      [523,4],[988,3],[880,1],[784,4],[698,4],
-      // 8: ミファソーラーラーソーーーーーーソ
-      [659,1],[698,1],[784,2],[880,2],[880,2],[784,7],[784,1],
-      // 9: 上のドーーーシーーレドーーー下のドーーー
-      [1047,4],[988,3],[587,1],[523,4],[262,4],
-      // 10: ドレミーレードーソーーーーーソー
-      [523,1],[587,1],[659,2],[587,1],[523,2],[784,6],[784,2],
-      // 11: 上のミーーーレーーレソーーーファーーー
-      [1319,4],[587,3],[587,1],[784,4],[698,4],
-      // 12: ミレミーファミレードーーーーーーー
+      // 7: C6(4) B5(3) A5 G5(4) F5(4)
+      [1047,4],[988,3],[880,1],[784,4],[698,4],
+      // 8: E5 F5 G5(2) A5(2) A5(2) G5(7) G4
+      [659,1],[698,1],[784,2],[880,2],[880,2],[784,7],[392,1],
+      // 9: C5(4) B4(3) D5 C5(4) C4(4)
+      [523,4],[494,3],[587,1],[523,4],[262,4],
+      // 10: C4 D4 E4(2) D4(2) C4(2) G4(6) G4(2)
+      [262,1],[294,1],[330,2],[294,2],[262,2],[392,6],[392,2],
+      // 11: E5(4) D5(3) D5 G5(4) F5(4)
+      [659,4],[587,3],[587,1],[784,4],[698,4],
+      // 12: E5 D5 E5(2) F5 E5 D5(2) C5(8)
       [659,1],[587,1],[659,2],[698,1],[659,1],[587,2],[523,8],
       // ループ前の小休止
       [null,4],
@@ -5664,43 +6811,52 @@
   // 歌詞ピース完成時(long ~5秒)＆戦闘中の歌コマンド時(short ~2秒)に流す主旋律
   // メロディはケイさんのフィードバックで微調整する想定
   const SONG_BGM = {
-    soran: { tempo: 160, wave: 'triangle', gain: 0.09, // ソーラン節（ケイさん指定の旋律）
-      // フレーズ1:「レーーーー ド ファー レー ド ラ」(12文字=12 8分)
-      short: [ [587,5],[523,1],[698,2],[587,2],[523,1],[440,1] ],
-      // 上＋ フレーズ2:「レ レー ドー ド ド レー レ レーー」(13 8分)
-      long:  [ [587,5],[523,1],[698,2],[587,2],[523,1],[440,1],
-               [587,1],[587,2],[523,2],[523,1],[523,1],[587,2],[587,1],[587,3] ],
+    // ソーラン節（ケイさん指定 / 0.5拍=16分音符相当）
+    soran: { tempo: 105, wave: 'triangle', gain: 0.09,
+      // 拍数据え置き（short=8 / long=16）なのでテンポは前回と同じ
+      shortTempo: 107, longTempo: 102,
+      // short 計8拍: D5(2) D5(2.5) C5(0.5) F5(1) D5(1) C5(0.5) A4(0.5)
+      short: [ [587,2],[587,2.5],[523,0.5],[698,1],[587,1],[523,0.5],[440,0.5] ],
+      // long 計16拍:
+      // D5(2) D5(2.5) C5(0.5) F5(1) D5(1) C5(0.5) A4(1)
+      // D5(0.5) D5(1) C5(1) C5(0.5) C5(0.5) D5(1) D5(0.5) D5(2.5)
+      long:  [ [587,2],[587,2.5],[523,0.5],[698,1],[587,1],[523,0.5],[440,1],
+               [587,0.5],[587,1],[523,1],[523,0.5],[523,0.5],[587,1],[587,0.5],[587,2.5] ],
     },
-    dynamic: { tempo: 100, wave: 'triangle', gain: 0.09, // ダイナミック琉球（ケイさん指定の旋律）
-      // 戦闘=前半19拍のみ／思い出した=後半20拍を追加して計39拍。長くなるのでテンポを速める
-      shortTempo: 200, longTempo: 170,
-      // 前半19拍:「ソー ファ#ー ミーーー レー ミー ミー シー シ ミー」
-      short: [ [784,2],[740,2],[659,4],[587,2],[659,2],[659,2],[494,2],[494,1],[659,2] ],
-      // 全旋律39拍: 前半 ＋「ソー ファ#ー ミー　ミー ソー ラー シ ラ ソー ラー シー」
-      long:  [ [784,2],[740,2],[659,4],[587,2],[659,2],[659,2],[494,2],[494,1],[659,2],
-               [784,2],[740,2],[659,2],
-               [659,2],[784,2],[880,2],[988,1],[880,1],[784,2],[880,2],[988,2] ],
+    // ダイナミック琉球（ケイさん指定）
+    dynamic: { tempo: 154, wave: 'triangle', gain: 0.09,
+      // 旧:200,19拍=2.85s → 新:16拍 → 168 / 旧:170,39拍=6.88s → 新:32拍 → 140
+      shortTempo: 168, longTempo: 140,
+      // short 計16拍: G5(1) F#5(1) E5(5) D5(1) E5(1) E5(1) B4(1) B4(0.5) E5(4.5)
+      short: [ [784,1],[740,1],[659,5],[587,1],[659,1],[659,1],[494,1],[494,0.5],[659,4.5] ],
+      // long 計32拍: short + 1行 (G5 F#5 E5(2)) + 1行
+      long:  [ [784,1],[740,1],[659,5],[587,1],[659,1],[659,1],[494,1],[494,0.5],[659,4.5],
+               [784,1],[740,1],[659,2],
+               [659,1],[784,1],[880,1],[988,0.5],[880,0.5],[784,1],[880,1],[988,6] ],
     },
-    mano: { tempo: 130, wave: 'triangle', gain: 0.09, // Mano kraštas（ケイさん指定: ドーミーファーーーファファーーファファーファファードーーー）
-      shortTempo: 220, longTempo: 120,
-      // 22拍:「ドー ミー ファーーー ファ ファーー ファ ファー ファ ファー ドーーー」
-      short: [ [523,2],[659,2],[698,4],
-               [698,1],[698,3],[698,1],[698,2],[698,1],[698,2],[523,4] ],
-      long:  [ [523,2],[659,2],[698,4],
-               [698,1],[698,3],[698,1],[698,2],[698,1],[698,2],[523,4] ],
+    // Mano kraštas（ケイさん指定。short=long同一旋律）
+    mano: { tempo: 120, wave: 'triangle', gain: 0.09,
+      // ケイさん指示でテンポを少しゆっくり目に（160→145 / 87→80）
+      shortTempo: 145, longTempo: 80,
+      // 計16拍: C5(1) E5(1) F5(4) F5(2) F5(2) F5(1) C5(5)
+      short: [ [523,1],[659,1],[698,4],[698,2],[698,2],[698,1],[523,5] ],
+      long:  [ [523,1],[659,1],[698,4],[698,2],[698,2],[698,1],[523,5] ],
     },
-    kur: { tempo: 110, wave: 'triangle', gain: 0.09, // Kur giria（ケイさん指定: ドレミーレードーソーーーファーーー ミレソーファーミーレーーー）
-      // 戦闘=前半16拍のみゆっくり目／思い出した=全28拍
-      shortTempo: 170, longTempo: 110, climaxTempo: 110,
-      // 前半16拍:「ド レ ミー レー ドー ソーーー ファーーー」
+    // Kur giria（ケイさん指定）
+    kur: { tempo: 110, wave: 'triangle', gain: 0.09,
+      // 旧:110,16拍=4.36s → 新:16拍 → 110(同じ) / 旧:110,28拍=7.64s → 新:32拍 → 126 / climaxは29拍同じ→110
+      shortTempo: 110, longTempo: 126, climaxTempo: 129,
+      // short 計16拍: C5 D5 E5(2) D5(2) C5(2) G5(4) F5(4)
       short: [ [523,1],[587,1],[659,2],[587,2],[523,2],[784,4],[698,4] ],
-      // 全旋律28拍: 前半 ＋「ミ レ ソー ファー ミー レーーー」
+      // long 計32拍: short + 1行 (E5 D5 G5(2) F5(2) E5(2) D5(8))
       long:  [ [523,1],[587,1],[659,2],[587,2],[523,2],[784,4],[698,4],
-               [659,1],[587,1],[784,2],[698,2],[659,2],[587,4] ],
-      // クライマックス29拍：「下のソー ミーーー レーー レ ソーーー ファーー ミ レ ミー ファ ミ レー ドーーー」
-      // 下のソ=G4(392)、その他は標準C5-G5
-      climax: [ [392,2],[659,4],[587,3],[587,1],[784,4],[698,3],
-                [659,1],[587,1],[659,2],[698,1],[659,1],[587,2],[523,4] ],
+               [659,1],[587,1],[784,2],[698,2],[659,2],[587,8] ],
+      // climax 計34拍:
+      // G4(2) E5(4) D5(3) D5 G5(4) F5(4)
+      // E5 D5 E5(2) F5 E5 D5(2) C5(8)
+      // 旧29拍@110=7.91s に揃えるため tempo を 129 にUP
+      climax: [ [392,2],[659,4],[587,3],[587,1],[784,4],[698,4],
+                [659,1],[587,1],[659,2],[698,1],[659,1],[587,2],[523,8] ],
     },
   };
 
@@ -5731,22 +6887,34 @@
         victory:   'assets/se_victory.mp3',
       },
     },
-    vol: { bgm: 0.55, se: 0.7, master: 1.0 },
+    vol: { bgm: 0.40, se: 0.7, master: 1.0 },
     duckLevel: 1.0, _duckTimer: null,
     bgm: null, bgmKey: null,
+    bgmGain: null, bgmSrc: null, // Web Audio 経由のBGMルーティング（iOSで .volume が効かない問題対策）
     actx: null, procTimer: null, procToken: 0,
+    _applyBGMVolume() {
+      // GainNode（あれば）または HTMLAudio.volume に現在のレベルを反映
+      const v = this.vol.bgm * this.duckLevel * this.vol.master;
+      if (this.bgmGain && this.actx) {
+        try {
+          const t = this.actx.currentTime;
+          this.bgmGain.gain.cancelScheduledValues(t);
+          this.bgmGain.gain.setTargetAtTime(v, t, 0.04);
+        } catch (e) {}
+      }
+      if (this.bgm) {
+        // GainNode 経由なら .volume は意味ないが、未対応端末用フォールバックで残す
+        try { this.bgm.volume = v; } catch (e) {}
+      }
+    },
     duckBGM(level, sec) {
       // TTS等の音声を聞きやすくするためBGMを一時的に絞る
       this.duckLevel = level;
-      if (this.bgm) {
-        try { this.bgm.volume = this.vol.bgm * this.duckLevel * this.vol.master; } catch (e) {}
-      }
+      this._applyBGMVolume();
       if (this._duckTimer) clearTimeout(this._duckTimer);
       this._duckTimer = setTimeout(() => {
         this.duckLevel = 1.0;
-        if (this.bgm) {
-          try { this.bgm.volume = this.vol.bgm * this.vol.master; } catch (e) {}
-        }
+        this._applyBGMVolume();
         this._duckTimer = null;
       }, Math.max(500, sec * 1000));
     },
@@ -5756,7 +6924,11 @@
         if (!C) return null;
         this.actx = new C();
       }
-      if (this.actx.state === 'suspended') this.actx.resume();
+      // iOS Safari は他アプリの音が割り込むと 'interrupted' 状態になり、
+      // 'suspended' しか見ていないと復帰漏れで以降のオシレータが無音化する。
+      if (this.actx.state === 'suspended' || this.actx.state === 'interrupted') {
+        try { this.actx.resume(); } catch (e) {}
+      }
       // ユーザー操作で初めてここに到達したタイミングで保留中のBGMを再試行
       this.retryPending();
       // ctx を起こしっぱなしにする「見張り役」オシレータを常駐させる。
@@ -5781,13 +6953,44 @@
     playBGM(key) {
       if (this.bgmKey === key && (this.bgm || this.procToken)) return;
       if (this.bgm) { try { this.bgm.pause(); } catch (e) {} this.bgm = null; }
+      // 旧 MediaElementSource は disconnect（Audio要素1つにつき1回しか作れないため、
+      // 新しい Audio に都度 source を作り直す）
+      if (this.bgmSrc) { try { this.bgmSrc.disconnect(); } catch (e) {} this.bgmSrc = null; }
       this.stopProcedural();
+      // 新しいBGMトラックに切り替えるときは進行中のダックをキャンセルしてフル音量に戻す。
+      // （climax の duckBGM(0.0, 22) が残っていると次の 'win'/'ending' BGM が無音になる）
+      if (this._duckTimer) { clearTimeout(this._duckTimer); this._duckTimer = null; }
+      this.duckLevel = 1.0;
       this.bgmKey = key;
       const url = this.files.bgm[key];
       if (url) {
         const a = new Audio(url);
         a.loop = true;
-        a.volume = this.vol.bgm * this.vol.master;
+        // ★ iOS Safari は HTMLAudio.volume を無視する（ハードボタン制御のみ）。
+        // 対策として Web Audio の MediaElementSource → GainNode にルーティングし、
+        // GainNode で実際の音量を制御する。これで duckBGM(0.02) が iOS でも効く。
+        const ctx = this.ensureCtx();
+        let routed = false;
+        if (ctx) {
+          try {
+            if (!this.bgmGain) {
+              this.bgmGain = ctx.createGain();
+              this.bgmGain.connect(ctx.destination);
+            }
+            this.bgmGain.gain.value = this.vol.bgm * this.duckLevel * this.vol.master;
+            const src = ctx.createMediaElementSource(a);
+            src.connect(this.bgmGain);
+            this.bgmSrc = src;
+            // 要素自体の volume はフルにしておく（GainNode 側で絞る）
+            a.volume = 1.0;
+            routed = true;
+          } catch (e) {
+            // MediaElementSource 失敗時は従来の .volume にフォールバック
+          }
+        }
+        if (!routed) {
+          a.volume = this.vol.bgm * this.duckLevel * this.vol.master;
+        }
         // play() のPromise解決を待たずに即座に登録する（次のplayBGMが確実にpauseできるよう）
         this.bgm = a;
         const p = a.play();
@@ -5795,6 +6998,7 @@
           p.then(() => { this._pendingBGM = null; }).catch((err) => {
             // 失敗 → bgm参照をクリアして必要ならフォールバック
             if (this.bgm === a) this.bgm = null;
+            if (this.bgmSrc) { try { this.bgmSrc.disconnect(); } catch (e) {} this.bgmSrc = null; }
             const name = err && err.name;
             if (name === 'NotAllowedError' || name === 'AbortError') {
               // 自動再生ブロック → 次のユーザー操作で再試行する
@@ -5819,6 +7023,7 @@
     },
     stopBGM() {
       if (this.bgm) { try { this.bgm.pause(); } catch (e) {} this.bgm = null; }
+      if (this.bgmSrc) { try { this.bgmSrc.disconnect(); } catch (e) {} this.bgmSrc = null; }
       this.stopProcedural();
       this.bgmKey = null;
     },
@@ -5832,6 +7037,8 @@
       const beatSec = 60 / def.tempo / 2; // 1拍=8分音符
       const playNext = () => {
         if (token !== this.procToken) return; // 上書きされたら停止
+        // oneshot指定の曲は最後まで来たらループせず終了
+        if (def.oneshot && i >= def.notes.length) { this.procTimer = null; return; }
         const [freq, beats] = def.notes[i % def.notes.length];
         const dur = beatSec * beats;
         if (freq) {
@@ -5869,67 +7076,37 @@
       if (!notes || notes.length === 0) return 0;
       const ctx = this.ensureCtx();
       if (!ctx) return 0;
-      // suspended なら再開（モバイルで長時間後にサスペンドされるケースの保険）
-      if (ctx.state === 'suspended') { try { ctx.resume(); } catch (e) {} }
+      // suspended/interrupted なら再開（モバイルで他アプリ割り込み後の保険）
+      const wasFrozen = (ctx.state === 'suspended' || ctx.state === 'interrupted');
+      if (wasFrozen) { try { ctx.resume(); } catch (e) {} }
       // variant別にテンポを上書きしたい曲は shortTempo/longTempo を持たせる
       const tempo = def[(variant || 'short') + 'Tempo'] || def.tempo;
       const beatSec = 60 / tempo / 2;
-      // climax は他のBGMが完全停止した直後に鳴らすので、立ち上がりに大きく余裕を持たせる。
-      // iOS Safari では ctx.resume() が非同期で、直後に osc.start(t) すると t が
-      // まだ過去扱いになりオシレータが破棄される場合があるため 0.5s 確保する。
-      const startDelay = (variant === 'climax') ? 0.5 : 0.05;
+      // climax は他のBGMが完全停止した直後に鳴らすので立ち上がりに余裕を持たせる。
+      // バックグラウンド復帰直後（wasFrozen）も ctx.resume() が非同期なため同様に確保。
+      // 「思い出した」(long) と同じフォルマント合成パスを通す方が iOS Safari でも
+      // 確実に発音するため、climax 専用のシンプル合成パスは廃止した。
+      const startDelay = (variant === 'climax' || wasFrozen) ? 0.3 : 0.05;
       let t = ctx.currentTime + startDelay;
       const startT = t;
-
-      // -------- climax: モバイルでも確実に鳴るシンプル合成 --------
-      // フォルマント並列＋LFO＋デチューン重ねの構成は iOS Safari で
-      // ノード生成が間に合わず無音化する事例が出たため、
-      // クライマックスは sawtooth 1本＋lowpass＋envelope の最小構成で鳴らす。
-      if (variant === 'climax') {
-        const peak = def.gain * this.vol.se * this.vol.master * 3.5;
-        notes.forEach(([freq, beats]) => {
-          const dur = beatSec * beats;
-          if (freq) {
-            try {
-              const lp = ctx.createBiquadFilter();
-              lp.type = 'lowpass';
-              lp.frequency.value = 2400;
-              lp.Q.value = 1.0;
-              const env = ctx.createGain();
-              env.gain.setValueAtTime(0.0001, t);
-              env.gain.linearRampToValueAtTime(peak, t + 0.06);
-              env.gain.setValueAtTime(peak, t + Math.max(0.06, dur * 0.7));
-              env.gain.exponentialRampToValueAtTime(0.0001, t + dur * 0.95);
-              const osc = ctx.createOscillator();
-              osc.type = 'sawtooth';
-              osc.frequency.value = freq;
-              osc.connect(lp); lp.connect(env); env.connect(ctx.destination);
-              osc.start(t);
-              osc.stop(t + dur);
-            } catch (e) {}
-          }
-          t += dur;
-        });
-        return t - startT;
-      }
-      // ---------------------------------------------------------
       // 母音「あ」風フォルマント (F1=730, F2=1090, F3=2440Hz)
       const FORMANTS = [
         { f: 730,  q: 6,  gain: 1.0  },
         { f: 1090, q: 8,  gain: 0.7  },
         { f: 2440, q: 10, gain: 0.35 },
       ];
-      // climax は主役なのでさらに大きく鳴らす
-      const variantBoost = (variant === 'short') ? 2.4 : (variant === 'climax') ? 5.5 : 4.0;
+      // 全variant同一音量で揃える（ケイさん指示: 音量はすべて同じ）
+      const variantBoost = 4.0;
       notes.forEach(([freq, beats]) => {
         const dur = beatSec * beats;
         if (freq) {
           try {
             const peak = def.gain * this.vol.se * this.vol.master * variantBoost * 0.7;
             // メイン音源：sawtooth（倍音多め）→ ローパス → フォルマント → 出力
+            // 声に近づけるため LP を 2400Hz まで下げて高域のジャリつきを抑える
             const lp = ctx.createBiquadFilter();
             lp.type = 'lowpass';
-            lp.frequency.value = 3000;
+            lp.frequency.value = 2400;
             lp.Q.value = 0.7;
             // フォルマント・ピーク（並列バンドパスを足し合わせ）
             const formantSum = ctx.createGain();
@@ -5947,19 +7124,25 @@
             const dry = ctx.createGain();
             dry.gain.value = 0.35;
             lp.connect(dry); dry.connect(formantSum);
-            // 振幅エンベロープ（ゆるめのアタック・リリース＝声の立ち上がり/収束）
+            // 振幅エンベロープ（人の声に近い緩やかなアタック・サステイン・リリース）
             const env = ctx.createGain();
+            const attack = Math.min(0.09, dur * 0.18);
             env.gain.setValueAtTime(0.0001, t);
-            env.gain.linearRampToValueAtTime(peak, t + 0.05);
-            env.gain.setValueAtTime(peak, t + Math.max(0.05, dur * 0.7));
+            env.gain.linearRampToValueAtTime(peak, t + attack);
+            env.gain.setValueAtTime(peak, t + Math.max(attack, dur * 0.7));
             env.gain.exponentialRampToValueAtTime(0.0001, t + dur * 0.95);
             formantSum.connect(env); env.connect(ctx.destination);
             // ビブラート LFO（5.5Hz・±8cents → ±約0.46%）
+            // 立ち上がりではビブラートを抑え、伸ばし音で揺らす（自然な歌唱）
             const lfo = ctx.createOscillator();
             lfo.type = 'sine';
             lfo.frequency.value = 5.5;
             const lfoGain = ctx.createGain();
-            lfoGain.gain.value = freq * 0.0046;
+            const vibAmt = freq * 0.0046;
+            const vibDelay = Math.min(0.18, dur * 0.4);
+            lfoGain.gain.setValueAtTime(0.0001, t);
+            lfoGain.gain.setValueAtTime(0.0001, t + vibDelay);
+            lfoGain.gain.linearRampToValueAtTime(vibAmt, t + vibDelay + 0.12);
             lfo.connect(lfoGain);
             // 主オシレータ（sawtooth）
             const osc1 = ctx.createOscillator();
@@ -6357,6 +7540,8 @@
     if (npc.kind === 'station_kl') { openStationKlaipeda(); return; }
     if (npc.kind === 'station_tr') { openStationTrakai();   return; }
     if (npc.kind === 'station_sl') { openStationSiauliai(); return; }
+    // クイズ設定があるNPCは独自のkindブロックがあっても先取りして共通処理に流す
+    if (npc.quiz) { ltQuizOpen(npc); return; }
     if (npc.kind === 'maria') {
       if (state.flags.kl_maria) {
         setDialog([
@@ -6524,11 +7709,13 @@
       setDialog(
         ['老漁師：「…おう、旅の人かい。」',
          '日に焼けた顔、節くれだった手、でも目元はやさしい老人。桟橋に座っている。',
-         '「クライペダの海はな、毎朝ちがう顔をしとる。…で、あんた、調子は？」'],
+         '「クライペダの海はな、毎朝ちがう顔をしとる。」',
+         '「── ところで、 旅をしてりゃリト語もいくつか覚えただろう。」',
+         '「別れ際にひとこと、 リト語で『またね』ってなんて言うか、 覚えとるかい？」'],
         null,
-        ['Labas!', 'Ačiū!', 'Kaip sekasi?'],
+        ['Iki!', 'Taip', 'Atsiprašau'],
         (i) => {
-          if (i === 2) {
+          if (i === 0) {
             if (!state.flags.kl_fisher) {
               state.flags.kl_fisher = true;
               const a = awardPiece('mano', '老漁師');
@@ -6556,7 +7743,7 @@
               }
             }
           } else {
-            setDialog(['老漁師：「ん？　よう聞こえんかった。」']);
+            setDialog(['老漁師：「ん？　それじゃ別れの挨拶にならんぞ。 また旅して、 街の連中と話してこい。」']);
           }
         }
       );
@@ -6621,19 +7808,34 @@
           '「歌え、魂のままに。── 旅の途中で、また会おう。」',
         ]);
       } else if (!state.flags.witches_trial) {
-        // 初訪：ボス試練（丘じゅうの彫刻が動き出す）
-        setDialog([
-          'チョルリョーニス：「よく来たね、歌い手よ。」',
-          '「ここは魔女の丘 Raganų kalnas。木々は祈り、彫刻は記憶を抱く場所だ。」',
-          '「君に渡したい楽器がある。── カンクレス。」',
-          '「だが、彼らは誰にでも手渡しはしない。」',
-          '精霊が手を上げると、丘じゅうの木彫り像がきしみながら目を開いた。',
-          '魔女・悪魔・英雄たちが、輪になって踊り始める。',
-          '「歌い鎮めなさい。 ── 君の歌が、本物かどうか彼らが見ている。」',
-        ], () => startBattle({
-          type: 'witches_idols', name: '踊り出した彫刻たち',
-          hp: 160, maxHp: 160, atk: 9, xp: 70, gold: 0, boss: true,
-        }));
+        // 初訪：ボス試練（丘じゅうの彫刻が動き出す） — 挑戦するか選べる
+        setDialog(
+          ['チョルリョーニス：「よく来たね、歌い手よ。」',
+           '「ここは魔女の丘 Raganų kalnas。木々は祈り、彫刻は記憶を抱く場所だ。」',
+           '「君に渡したい楽器がある。── カンクレス。」',
+           '「だが、彼らは誰にでも手渡しはしない。」',
+           'チョルリョーニス：「── 試練に挑むかね？ 丘じゅうの木彫り像が、歌で目覚める。」'],
+          null,
+          ['挑む', 'まだやめておく'],
+          (i) => {
+            if (i === 0) {
+              setDialog([
+                '精霊が手を上げると、丘じゅうの木彫り像がきしみながら目を開いた。',
+                '魔女・悪魔・英雄たちが、輪になって踊り始める。',
+                '「歌い鎮めなさい。 ── 君の歌が、本物かどうか彼らが見ている。」',
+              ], () => startBattle({
+                type: 'witches_idols', name: '踊り出した彫刻たち',
+                hp: 160, maxHp: 160, atk: 9, xp: 70, gold: 0, boss: true,
+              }));
+            } else {
+              setDialog([
+                'チョルリョーニス：「うむ、 焦ることはない。」',
+                '「歌は、 心が満ちたときに最も遠くまで届く。」',
+                '「準備が整ったら、 また私のもとへ来なさい。」',
+              ]);
+            }
+          }
+        );
       } else {
         // 試練クリア後：カンクレス授与
         setDialog([
@@ -6697,30 +7899,32 @@
     }
     if (npc.kind === 'tr_fisher') {
       // 漁師：Mano kraštas 4個目
+      if (state.flags.tr_fisher) {
+        setDialog([
+          '漁師：「城には吟遊詩人の年寄りが居るぞ。」',
+          '「彼の歌う Mano kraštas は、湖の音そのものだ。」',
+        ]);
+        return;
+      }
       setDialog(
         ['トラカイの漁師：「Labas. 旅人かい。」',
          '湖畔で網を繕いながら、しゃがれた声で話しかけてくる老人。',
-         '「この湖はね、私の故郷そのものなんだ。 父も祖父も、ここで魚を獲ってきた。」'],
+         '「この湖はね、私の故郷そのものなんだ。 父も祖父も、ここで魚を獲ってきた。」',
+         '「── ところで、 リト語で『ふるさと』ってなんて言うか分かるかね？」'],
         null,
-        ['Labas!', 'Ačiū!', 'Kaip sekasi?'],
+        ['Mano kraštas', 'Labas vakaras', 'Iki pasimatymo'],
         (i) => {
-          if (i === 2) {
-            if (!state.flags.tr_fisher) {
-              state.flags.tr_fisher = true;
-              const a = awardPiece('mano', 'トラカイの漁師');
-              setDialog([
-                '漁師：「Gerai. 良い気遣いだ。」',
-                '「Mano kraštas を集めてるんだろう？ 譜面の切れ端、長年舟に置いてあったやつをやろう。」',
-                '「歌のうまい人間に渡るほうが、紙だって嬉しかろうて。」',
-              ].concat(pieceLines(a)), () => saveGame());
-            } else {
-              setDialog([
-                '漁師：「城には吟遊詩人の年寄りが居るぞ。」',
-                '「彼の歌う Mano kraštas は、湖の音そのものだ。」',
-              ]);
-            }
+          if (i === 0) {
+            state.flags.tr_fisher = true;
+            const a = awardPiece('mano', 'トラカイの漁師');
+            setDialog([
+              '漁師：「Puikiai! ── そう、Mano kraštas。 私のふるさと、という意味だ。」',
+              '「あんたが集めてる曲の名前そのものだよ。」',
+              '「譜面の切れ端、長年舟に置いてあったやつをやろう。」',
+              '「歌のうまい人間に渡るほうが、紙だって嬉しかろうて。」',
+            ].concat(pieceLines(a)), () => saveGame());
           } else {
-            setDialog(['漁師：「ふむ、急ぐでない。湖は逃げぬよ。」']);
+            setDialog(['漁師：「ふむ、それは別の意味だな。 もう一度よく考えてみい。」']);
           }
         }
       );
@@ -6728,31 +7932,33 @@
     }
     if (npc.kind === 'tr_bard') {
       // 老吟遊詩人：Mano kraštas 5個目（→ 思い出した！）
+      if (state.flags.tr_bard) {
+        setDialog([
+          '老吟遊詩人：「もう私の役目は終わった。」',
+          '「歌うのは、君だ。」',
+        ]);
+        return;
+      }
       setDialog(
         ['老吟遊詩人：「── ようこそ、トラカイ城へ。」',
          '湖の窓辺に佇む白髭の老人。古びたカンクレス…ではない、別の弦楽器を抱えている。',
          '「私はもう声が出ぬ。だが、譜面ならいくらでもある。」',
-         '「Mano kraštas を、最後の一葉まで集めに来たのだろう？」'],
+         '「Mano kraštas を、最後の一葉まで集めに来たのだろう？」',
+         '「最後の譜面を渡そう。 ── ところで、 リト語で『歌』をなんと言うか知っているか？」'],
         null,
-        ['Labas!', 'Ačiū!', 'Kaip sekasi?'],
+        ['Daina', 'Knyga', 'Vanduo'],
         (i) => {
-          if (i === 1) {
-            if (!state.flags.tr_bard) {
-              state.flags.tr_bard = true;
-              const a = awardPiece('mano', '老吟遊詩人');
-              setDialog([
-                '老吟遊詩人：「Ačiū. 礼儀を知る歌い手だ。」',
-                '「これが最後の譜面だ。私が若き日に、湖の上で書きとめた一節。」',
-                '老人は震える手で羊皮紙を差し出した。風が湖面を渡り、紙を一度だけそよがせた。',
-              ].concat(pieceLines(a)), () => saveGame());
-            } else {
-              setDialog([
-                '老吟遊詩人：「もう私の役目は終わった。」',
-                '「歌うのは、君だ。」',
-              ]);
-            }
+          if (i === 0) {
+            state.flags.tr_bard = true;
+            const a = awardPiece('mano', '老吟遊詩人');
+            setDialog([
+              '老吟遊詩人：「Puikiai. ── そう、Daina。」',
+              '「君が目指す祭典 Dainų šventė も、 Daina から来ている。 『歌の祭典』だ。」',
+              '「これが最後の譜面だ。私が若き日に、湖の上で書きとめた一節。」',
+              '老人は震える手で羊皮紙を差し出した。風が湖面を渡り、紙を一度だけそよがせた。',
+            ].concat(pieceLines(a)), () => saveGame());
           } else {
-            setDialog(['老吟遊詩人：「礼儀から始めよ、若い歌い手よ。」']);
+            setDialog(['老吟遊詩人：「ふむ、それは別の言葉だ。 もう一度よく考えてみるがよい。」']);
           }
         }
       );
@@ -6806,31 +8012,32 @@
     }
     if (npc.kind === 'sl_pilgrim') {
       // 十字架の丘で巡礼している老人 — Kur giria 1個目
+      if (state.flags.sl_pilgrim) {
+        setDialog([
+          '巡礼者：「丘の頂のあたりに、白い影がときどき見えると噂です。」',
+          '「── あなたを呼んでいるのかもしれません。」',
+        ]);
+        return;
+      }
       setDialog(
         ['巡礼者：「Labas. ここに来たのは、初めてですか。」',
          '丘いっぱいに立つ十字架を、ひとつひとつ確かめるように歩いている老人。',
          '「私の家系は代々ここに十字架を立ててきた。 ソ連時代も、夜のあいだに何度も。」',
-         '「祈りと音楽は、同じだと思いませんか。 ── ところで、お礼の言葉は？」'],
+         '「祈りと音楽は、同じだと思いませんか。 ── ところで、 リト語で『祈り』をなんと言うか分かりますか？」'],
         null,
-        ['Labas!', 'Ačiū!', 'Kaip sekasi?'],
+        ['Malda', 'Sapnas', 'Daina'],
         (i) => {
-          if (i === 1) {
-            if (!state.flags.sl_pilgrim) {
-              state.flags.sl_pilgrim = true;
-              const a = awardPiece('kur', '巡礼者');
-              setDialog([
-                '巡礼者：「Ačiū. 心のこもったリト語ですね。」',
-                '「歌い手のあなたに、ひとつ譜面を譲りましょう。」',
-                '「Kur giria —— どこに森があるのか。 リトアニアの心の深いところに響く歌です。」',
-              ].concat(pieceLines(a)), () => saveGame());
-            } else {
-              setDialog([
-                '巡礼者：「丘の頂のあたりに、白い影がときどき見えると噂です。」',
-                '「── あなたを呼んでいるのかもしれません。」',
-              ]);
-            }
+          if (i === 0) {
+            state.flags.sl_pilgrim = true;
+            const a = awardPiece('kur', '巡礼者');
+            setDialog([
+              '巡礼者：「Puikiai. ── そう、Malda。」',
+              '「私たちはここで毎日 Malda を捧げています。 歌もまた、ひとつの Malda です。」',
+              '「歌い手のあなたに、ひとつ譜面を譲りましょう。」',
+              '「Kur giria —— どこに森があるのか。 リトアニアの心の深いところに響く歌です。」',
+            ].concat(pieceLines(a)), () => saveGame());
           } else {
-            setDialog(['巡礼者：「ふむ、また今度ゆっくり話しましょうか。」']);
+            setDialog(['巡礼者：「ふむ、それは別の言葉ですね。 もう一度ゆっくり考えてみましょう。」']);
           }
         }
       );
@@ -6946,8 +8153,9 @@
     }
     if (npc.kind === 'kid_k') {
       setDialog(
-        ['少年：「Labas vakaras! 元気！？」',
-         '駆け回っている地元の少年。'],
+        ['少年：「Labas! あんた旅の人だろ？」',
+         '駆け回っている地元の少年。',
+         '「な、リト語クイズ出していい？ ── 『元気？』ってリト語でなんて言うか知ってる？」'],
         null,
         ['Labas!', 'Ačiū!', 'Kaip sekasi?'],
         (i) => {
@@ -6967,7 +8175,7 @@
               ]);
             }
           } else {
-            setDialog(['少年：「ぼく Kaip sekasi? って聞いたんだけどな〜！」']);
+            setDialog(['少年：「ちがーう！ 正解は『Kaip sekasi?』だよ！」']);
           }
         }
       );
@@ -7560,7 +8768,8 @@
         ['イエヴァ：「Labas vakaras… 旅の方ですか？」',
          'マンタスの妻。透き通った声の歌手で、手には楽譜を持っている。',
          '4姉妹の4女、陽気だけど必要以上には話さない。',
-         '「あなたの歌、聴いてみたいです。元気？」'],
+         '「あなたの歌、聴いてみたいです。」',
+         '「── ところで、リト語で『元気？』と尋ねるときは何て言うか、ご存じ？」'],
         null,
         ['Labas!', 'Ačiū!', 'Kaip sekasi?'],
         (i) => {
@@ -7593,16 +8802,30 @@
          '「歌詞のピースが欲しい── そう聞こえたな。」',
          '「悪いが、これは大切な預かりもの。 ただで渡すわけにはいかぬ。」',
          '「── どうだろう、ひとつ歌で勝負しないか？」',
-         '「我の心を震わせてくれたら、迷わず譲ろう。」'],
-        () => startBattle({
-          type: 'guardian', name: '塔の番人',
-          hp: 110, maxHp: 110, atk: 7, xp: 40, gold: 70, boss: true,
-        })
+         '「我の心を震わせてくれたら、迷わず譲ろう。」',
+         '塔の番人：「── どうする、勝負するか？」'],
+        null,
+        ['勝負する', 'やめておく'],
+        (i) => {
+          if (i === 0) {
+            startBattle({
+              type: 'guardian', name: '塔の番人',
+              hp: 110, maxHp: 110, atk: 7, xp: 40, gold: 70, boss: true,
+            });
+          } else {
+            setDialog([
+              '塔の番人：「うむ、無理は良くない。 力を蓄えてからまた来るがよい。」',
+              '「街の者と歌を交わし、心を磨いてくることだ。」',
+            ]);
+          }
+        }
       );
       return;
     }
 
     // 一般NPC（あいさつ学習）
+    // npc.quiz が定義されていれば、それを使った3択クイズ（場面ごとのリト語バリエーション用）
+    if (npc.quiz) { ltQuizOpen(npc); return; }
     const hintMap = {
       labas: { q: npc.name + 'があなたに微笑みかけている。なんとあいさつする？', correct: 0 },
       aciu:  { q: npc.name + 'が何かをくれそうだ。お礼にあたる言葉は？',         correct: 1 },
@@ -7621,6 +8844,43 @@
       (i) => {
         if (i === h.correct) afterCorrect(npc);
         else setDialog([npc.name + '：「???」', '（うまく通じなかったようだ…）']);
+      }
+    );
+  }
+
+  // ============================================================
+  // 場面ごとリト語クイズ（npc.quiz）
+  //   quiz: { intro:[...], teach:[...], question:'...', choices:['…','…','…'], correct:0|1|2,
+  //           wrongMsg?:'…', learnedFlag?:'lt_taip' }
+  //   - intro: 名前付き挨拶（自動で 'NPC：「...」' に整形しない＝必要なら呼び出し側で含めること）
+  //   - teach: 新出リト語の意味解説（学習用）
+  //   - question: 3択クイズの設問
+  //   - 正解 → afterCorrect(npc)（既存のピース付与/ヒント表示ロジックを再利用）
+  //   - learnedFlag があれば、2回目以降は teach をスキップ
+  // ============================================================
+  function ltQuizOpen(npc) {
+    const q = npc.quiz;
+    const learned = q.learnedFlag && state.flags && state.flags[q.learnedFlag];
+    const lines = [];
+    if (q.intro) q.intro.forEach(s => lines.push(s));
+    if (q.teach && !learned) q.teach.forEach(s => lines.push(s));
+    if (q.question) lines.push(q.question);
+    setDialog(
+      lines,
+      null,
+      q.choices.slice(),
+      (i) => {
+        if (i === q.correct) {
+          if (q.learnedFlag) { state.flags[q.learnedFlag] = true; saveGame(); }
+          // ピース付与なし・独自台詞のNPC向け: correctLines があればそれを表示するだけ
+          if (q.correctLines) {
+            setDialog(q.correctLines.slice(), () => saveGame());
+            return;
+          }
+          afterCorrect(npc);
+        } else {
+          setDialog([npc.name + '：「' + (q.wrongMsg || '???') + '」', '（うまく通じなかったようだ…）']);
+        }
       }
     );
   }
@@ -7941,6 +9201,9 @@
     const justCompleted = (idx + 1 === SONG_DATA[song].max);
     // 「思い出した」ファンファーレは pieceLines のセンチネルから showDialog で発火する
     if (typeof rebuildSongs === 'function') rebuildSongs();
+    // ピース取得で出現条件が変わるNPC（例: Kur giria 5/5 → ギンターレ）が
+    // 同じ街で即座に出るように、現在街のNPCリストを再構築する
+    if (state.cityKey && typeof rebuildNPCs === 'function') rebuildNPCs(state.cityKey);
     return {
       song,
       songName: SONG_DATA[song].name,
@@ -8095,8 +9358,9 @@
     ctx.font = 'italic 10px sans-serif';
     ctx.fillText('バルト海', PAD_X + 18, TOP + H * 0.18);
 
-    // 都市マーカー
+    // 都市マーカー（Vingisパークは現実でもヴィリニュス市内の公園のため、全体マップでは独立表示しない）
     Object.entries(CITIES).forEach(([key, c]) => {
+      if (key === 'vingis') return;
       const x = px(c.realX);
       const y = py(c.realY);
       const visited = !!(state.visitedCities && state.visitedCities[key]);
@@ -8117,11 +9381,12 @@
         ctx.arc(x, y, 10, 0, Math.PI * 2);
         ctx.stroke();
       }
-      // 都市名
+      // 都市名（labelBelow が true の都市は近接ピンとの重なり回避のため下に表示）
       ctx.fillStyle = visited ? '#fff' : '#aaa';
       ctx.font = (here ? 'bold ' : '') + '12px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(c.name, x, y - 10);
+      const labelY = c.labelBelow ? y + 20 : y - 10;
+      ctx.fillText(c.name, x, labelY);
     });
 
     // 凡例
@@ -8263,26 +9528,164 @@
   //  チョルリョーニス精霊C演出 → 「3万人の観衆」群体ボス戦
   // ============================================================
   function startDainusvente() {
-    setDialog([
-      '── ふっと、 風が止まった。',
-      '会場の灯りが、 一瞬だけ揺れる。',
-      '誰の目にも映らないけれど、 ステージの脇に、 彼が立っていた。',
-      'チョルリョーニス：「歌え、 魂のままに。」',
-      '「── お前たちの音は、 もうリトアニアそのものだ。」',
-      '「だが── 同じ歌ばかりでは、 三万の風には届かぬ。」',
-      '「四つの旋律── 取り戻したすべてを響かせよ。」',
-      '「そのとき、 観衆の魂は震える。」',
-      '── 本番の舞台。 不思議と、 三人の喉に重さは無い。',
-      '何度でも、 いくらでも歌える気がした。',
-      'ふっと、 また風が動き出す。 観衆のざわめきが遠くから戻ってくる。',
-      `${state.party[0].name}たち3人は、 ステージの中央へ進み出た。`,
-      '3万人の観衆の視線が、 一斉に、 集まる──',
-    ], () => {
-      audio.stopBGM();
-      startBattle({
-        type: 'audience_30k',
-        name: '3万人の観衆',
-        hp: 1000, maxHp: 1000, atk: 6, xp: 0, gold: 0, boss: true,
+    // 「風が止まった」表現と合わせて、まず会場のBGMを止める
+    audio.stopBGM();
+    // 主人公3人をステージ中央まで自動歩行させ、横一列で観客（下）に振り返ったあとダイアログ開始
+    walkPartyToStage(() => {
+      setDialog([
+        '── ふっと、 風が止まった。',
+        '会場の灯りが、 一瞬だけ揺れる。',
+        '誰の目にも映らないけれど、 ステージの脇に、 彼が立っていた。',
+        'チョルリョーニス：「歌え、 魂のままに。」',
+        '「── お前たちの音は、 もうリトアニアそのものだ。」',
+        '「だが── 同じ歌ばかりでは、 三万の風には届かぬ。」',
+        '「四つの旋律── 取り戻したすべてを響かせよ。」',
+        '「そのとき、 観衆の魂は震える。」',
+        '── 本番の舞台。 不思議と、 三人の喉に重さは無い。',
+        '何度でも、 いくらでも歌える気がした。',
+        'ふっと、 また風が動き出す。 観衆のざわめきが遠くから戻ってくる。',
+        '3万人の観衆の視線が、 一斉に、 集まる──',
+      ], () => {
+        startBattle({
+          type: 'audience_30k',
+          name: '3万人の観衆',
+          hp: 9999, maxHp: 9999, atk: 6, xp: 0, gold: 0, boss: true,
+        });
+      });
+    });
+  }
+
+  // ============================================================
+  // ダイヌシュベンテ最終戦・自動歩行カットシーン
+  //  主人公→ステージ中央(16,6)、仲間2人→左右(15,6)/(17,6)、全員観客(下)に振り返る
+  // ============================================================
+  function walkPartyToStage(onDone) {
+    state.scene = 'cutscene';
+    const STEP_DUR = 200;
+    const f1 = state.followers[0];
+    const f2 = state.followers[1];
+    // ギンターレはステージ前まで一緒に歩いて、そこで右に避ける役（消さない）
+    const gintere = NPCS.find(n => n && n.kind === 'gintere_v');
+
+    // スタート前に仲間2人をリーダー直下の縦列にスナップ
+    f1.x = state.px; f1.y = state.py + 1; f1.dir = 'up'; f1.move = null;
+    f2.x = state.px; f2.y = state.py + 2; f2.dir = 'up'; f2.move = null;
+    state.pdir = 'up';
+
+    // 専用rAFループ（startFieldLoop は scene==='field' の時しか動かないため）
+    let alive = true;
+    function loop() {
+      if (!alive) return;
+      renderField();
+      requestAnimationFrame(loop);
+    }
+    loop();
+
+    // ギンターレ＋3人を縦列のまま1タイル分(dx,dy)動かす
+    function stepAllWithGintere(dx, dy, callback) {
+      const t0 = performance.now();
+      const dirName = _dirNameOf(dx, dy);
+      state.move = { dx, dy, t0, dur: STEP_DUR };
+      f1.move    = { dx, dy, t0, dur: STEP_DUR };
+      f2.move    = { dx, dy, t0, dur: STEP_DUR };
+      if (dirName) { state.pdir = dirName; f1.dir = dirName; f2.dir = dirName; }
+      if (gintere) {
+        gintere.walking = { dx, dy, t0, dur: STEP_DUR };
+        if (dirName) gintere.dir = dirName;
+      }
+      setTimeout(() => {
+        state.px += dx; state.py += dy; state.move = null;
+        f1.x    += dx; f1.y    += dy; f1.move    = null;
+        f2.x    += dx; f2.y    += dy; f2.move    = null;
+        if (gintere) { gintere.x += dx; gintere.y += dy; gintere.walking = null; }
+        audio.playSE('step');
+        callback();
+      }, STEP_DUR);
+    }
+
+    // 3人だけ動かす（ギンターレは置いて行く）
+    function stepPartyOnly(dx, dy, callback) {
+      const t0 = performance.now();
+      const dirName = _dirNameOf(dx, dy);
+      state.move = { dx, dy, t0, dur: STEP_DUR };
+      f1.move    = { dx, dy, t0, dur: STEP_DUR };
+      f2.move    = { dx, dy, t0, dur: STEP_DUR };
+      if (dirName) { state.pdir = dirName; f1.dir = dirName; f2.dir = dirName; }
+      setTimeout(() => {
+        state.px += dx; state.py += dy; state.move = null;
+        f1.x    += dx; f1.y    += dy; f1.move    = null;
+        f2.x    += dx; f2.y    += dy; f2.move    = null;
+        audio.playSE('step');
+        callback();
+      }, STEP_DUR);
+    }
+
+    // ギンターレだけ動かす
+    function stepGintereOnly(dx, dy, callback) {
+      if (!gintere) { callback(); return; }
+      const t0 = performance.now();
+      const dirName = _dirNameOf(dx, dy);
+      gintere.walking = { dx, dy, t0, dur: STEP_DUR };
+      if (dirName) gintere.dir = dirName;
+      setTimeout(() => {
+        gintere.x += dx; gintere.y += dy; gintere.walking = null;
+        audio.playSE('step');
+        callback();
+      }, STEP_DUR);
+    }
+
+    // Phase 1: ギンターレ＋3人で縦列のまま北上、ギンターレが y=5（ステージ前）まで
+    function walkAllUpToGintereY5(callback) {
+      if (!gintere || gintere.y <= 5) { callback(); return; }
+      stepAllWithGintere(0, -1, () => walkAllUpToGintereY5(callback));
+    }
+
+    // Phase 2: ギンターレが右に1歩どく（(16,5) → (17,5)）
+    function gintereStepAside(callback) {
+      stepGintereOnly(1, 0, () => setTimeout(callback, 300));
+    }
+
+    // Phase 3: 3人だけステージへ。リーダー (16,6) → (16,3)、F1 (15,3)、F2 (17,3)
+    function partyClimbStage(callback) {
+      // 縦列のまま3歩上に登る
+      stepPartyOnly(0, -1, () => {            // P(16,5) F1(16,6) F2(16,7)
+        stepPartyOnly(0, -1, () => {          // P(16,4) F1(16,5) F2(16,6)
+          stepPartyOnly(0, -1, () => {        // P(16,3) F1(16,4) F2(16,5)
+            // 横一列に展開（F1左、F2右）
+            const SPREAD_DUR = 450;
+            const t0 = performance.now();
+            f1.move = { dx: -1, dy: -1, t0, dur: SPREAD_DUR }; f1.dir = 'up';
+            f2.move = { dx: 1,  dy: -2, t0, dur: SPREAD_DUR }; f2.dir = 'up';
+            setTimeout(() => {
+              f1.x = 15; f1.y = 3; f1.move = null;
+              f2.x = 17; f2.y = 3; f2.move = null;
+              audio.playSE('step');
+              callback();
+            }, SPREAD_DUR);
+          });
+        });
+      });
+    }
+
+    function turnToAudience(callback) {
+      setTimeout(() => {
+        state.pdir = 'down';
+        f1.dir    = 'down';
+        f2.dir    = 'down';
+        renderField();
+        setTimeout(callback, 700);
+      }, 300);
+    }
+
+    walkAllUpToGintereY5(() => {
+      gintereStepAside(() => {
+        partyClimbStage(() => {
+          turnToAudience(() => {
+            alive = false;
+            state.scene = 'field';
+            onDone();
+          });
+        });
       });
     });
   }
@@ -8567,6 +9970,13 @@
         executeBattleAction(b.dataset.act);
       });
     });
+    // 選択中のボタンを必ず可視範囲に収める（小さな画面でレイアウトがあふれた場合の保険）
+    if (state.battleStep === 'menu') {
+      const sel = d.querySelector('[data-idx="' + state.battleCursor + '"]');
+      if (sel && typeof sel.scrollIntoView === 'function') {
+        try { sel.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) {}
+      }
+    }
   }
 
   const SONG_COLORS = ['#dac030', '#3aae5a', '#3a8abe', '#aa6aee', '#c83030'];
@@ -8652,11 +10062,11 @@
         state.noSkipBattle = true;
         battleWait(() => {
           setBattleLog('── ふっと、 風が、 止まった。');
-          // ボスBGMを完全に止めて、クライマックス音源を主役にする
-          audio.stopBGM();
-          // iOS Safari は出力が無くなると AudioContext を休止させがち。
-          // この後の playSongPhrase('kur','climax') が無音にならないよう、
-          // ctx を起こし続けるための見張り役を即時に確保する。
+          // BGM は MediaElementSource → GainNode 経由でルーティングしているため、
+          // iOS Safari でも duckBGM で実際に音量を絞れる。
+          // HTMLAudio 自体の再生は継続させて音声セッションを維持し、
+          // 続く Web Audio (climax) が確実に出力されるようにする。
+          audio.duckBGM(0.0, 22);
           audio.ensureCtx();
         }, 1500);
         battleWait(() => {
@@ -8679,7 +10089,7 @@
         battleWait(() => {
           setBattleLog('★ 4つの旋律が、 ひとつに重なる──');
           pushFx({ kind: 'flash', dur: 1200 });
-          // BGMは「風が止まった」で既に停止済み。クライマックス曲が無音の中に響き渡る。
+          // BGMは「風が止まった」で2%まで絞ってあるので、ほぼ無音の中に響き渡る。
           const climaxSec = audio.playSongPhrase('kur', 'climax') || 8.0;
           // 全3人から敵へ無数の音符
           for (let n = 0; n < 12; n++) {
@@ -8874,6 +10284,9 @@
         state.flags.guardian = true;
         const a = awardPiece('soran', '塔の番人');
         audio.playSE('piece');
+        msg.push('塔の番人：「── 見事だ。 我の心が、 確かに震えた。」');
+        msg.push('塔の番人：「我も若き頃は、 この塔の上で歌ったものだ。」');
+        msg.push('塔の番人：「リトアニアの空に、 お前たちの声を響かせよ。」');
         msg.push('塔の番人は静かに歌詞ピースを差し出した…');
         pieceLines(a).forEach(l => msg.push(l));
       } else if (state.enemy.type === 'witches_idols' && !state.flags.witches_trial) {
@@ -8950,15 +10363,15 @@
     const sibStr = sib();
     setDialog([
       '── 舞台袖から、 リトアニアの友人たちが、 一人、 また一人と集まってくる。',
-      'マンタス：「やられたよ！ あんなに大きな声、 ぼくは出せたことないよ。」',
+      'マンタス：「やられたよ！ 黒パン届けてくれた頃から、 ぼくは本気で君たちのファンだったんだ！」',
       'イエヴァ：「あなたたちの故郷の歌── ほんとうに素敵だった。 あとでうちのレストランに来てね、 ご馳走するから。」',
       'エレナ：「ピアノで合わせたかったわ。 でも、 あなたたち3人で十分だった。」',
       'マリウス：「‥‥うん。 よかった。 心から、 そう思う。」',
       'マリア：「ヴィオラじゃ、 あの感動は出せない。 歌って、 すごい。」',
       'コトリーナ：「あの紙切れ、 渡せて本当によかった。 子どもたちの宝物が、 ちゃんと届いた気がする。」',
-      `ルツィア：「${sibStr}！ ルーちゃんの紙、 ちゃんと光ってた？」`,
+      `ルツィア：「${sibStr}！ ルーちゃんの えのうた、 ちゃんと うたえた？」`,
       'ヴィクトリア：「── 認めるわ。 今日のあなたたちは、 私より、 ずっと良い歌だった。」',
-      'ユウコヤマサキ：「カンクレスを返してくれたあなたたちが、 こうして歌い上げる── 本当に、 嬉しいです。」',
+      'ユウコヤマサキ：「カンクレスを取り戻してくれたあなたたちが、 こうして歌い上げる── 本当に、 嬉しいです。」',
       'ギンターレ：「あの夜、 私が見たのは── リトアニアの未来。 ありがとう。」',
     ], playEndingSceneC);
   }
@@ -8967,20 +10380,28 @@
     // Scene C: チョルリョーニスの最後の登場
     // ギンターレの最後のセリフが画面に残ったままBGMだけ消えると順番がズレて見えるため、
     // ダイアログ枠を即時クリアして「セリフ→無音」を視覚的にも揃える。
+    // setTimeout の隙間に A 連打で「特に何もない」が出ないよう scene を cutscene に固定。
+    state.scene = 'cutscene';
     const dialog = document.getElementById('dialog');
     if (dialog) dialog.innerHTML = '';
-    audio.stopBGM();
+    // win BGM を完全停止すると iOS Safari で Audio セッションが落ち、
+    // 続く手続き合成の ending BGM が無音になる。鳴らしたまま音量だけ 0 に絞り、
+    // セッションを維持する（クライマックス時にボスBGMを ducking で残すのと同じ手）。
+    // ユーザー読みが長引いても復帰しないよう 120s と長めに取る。
+    audio.duckBGM(0.0, 120);
     fadeCanvas(2000, 0.4);
     setTimeout(() => {
       setDialog([
         '── そのとき、 風が、 静かに吹き抜けた。',
         '誰も気づかないけれど、 ステージの端に、 彼が立っていた。',
         'チョルリョーニス：「── お前たちの音は、 リトアニアの森にも、 海にも、 空にも届いた。」',
-        '「歌は消えても、 鳴らした音は残る。」',
+        '「歌い終えた声は、 大地に還り、 また誰かの歌になる。」',
         '「私たちはみな── 消えゆく旋律の、 一部にすぎない。」',
         '「いい旅だった。 もう、 言うことはない。」',
         '── 風が止む。 ステージの端には、 もう誰もいない。',
       ], () => {
+        // setTimeout(rollCredits) の隙間でも A 連打が field に漏れないようにロック
+        state.scene = 'cutscene';
         fadeCanvas(2000, 1);
         setTimeout(rollCredits, 2200);
       });
@@ -8990,12 +10411,25 @@
   function rollCredits() {
     // Scene D: スタッフロール（DOMオーバーレイで縦スクロール）
     state.scene = 'credits';
-    // クレジット開始でエンディングBGMを最初から再生（Scene C で停めたものを仕切り直し）
-    audio.stopBGM();
-    audio.duckLevel = 1.0; // 念のためダッキングをリセット
-    // ctx 再開を確実に行ってから少し遅延して鳴らす（モバイルでサスペンドからの復帰待ち）
+    // ★ ending は手続き合成のため ctx.destination に直接出力する。
+    //   ここで stopBGM すると win HTMLAudio が止まり、iOS Safari で
+    //   Audio セッションが落ちて以降の手続き音が無音化するため、
+    //   win BGM は鳴らしたまま（音量だけ 0）にして上に重ねて鳴らす。
+    //   ただし duckBGM だと duckLevel が 0 になり、playProcedural の peak も
+    //   0 倍されて ending が無音化するので、ここでは bgmGain だけを直接絞り、
+    //   JS 側 duckLevel は 1.0 に戻す（procedural が full volume で鳴るように）。
+    if (audio._duckTimer) { clearTimeout(audio._duckTimer); audio._duckTimer = null; }
+    audio.duckLevel = 1.0;
+    if (audio.bgmGain && audio.actx) {
+      try {
+        const t = audio.actx.currentTime;
+        audio.bgmGain.gain.cancelScheduledValues(t);
+        audio.bgmGain.gain.setTargetAtTime(0, t, 0.04);
+      } catch (e) {}
+    }
     audio.ensureCtx();
-    setTimeout(() => audio.playBGM('ending'), 120);
+    // 直接 playProcedural を呼ぶ（playBGM だと win を pause してしまう）
+    setTimeout(() => audio.playProcedural('ending'), 120);
     const dialog = document.getElementById('dialog');
     if (dialog) dialog.innerHTML = '<div style="text-align:center;color:#888;font-size:11px;">エンドロール</div>';
 
@@ -9382,7 +10816,14 @@
   }
 
   function pressA() {
-    if (state.scene === 'title' || state.scene === 'newgame') return; // ボタン操作で進める
+    if (state.scene === 'cutscene') return; // 自動歩行カットシーン中は入力無効
+    if (state.scene === 'newgame') {
+      audio.ensureCtx();
+      audio.playSE('decide');
+      dispatchSyntheticKey('Enter');
+      return;
+    }
+    if (state.scene === 'title') return; // タイトルはダイアログ内ボタンで進める
     audio.ensureCtx();
     if (state.scene === 'buildingInfo') { closeBuildingInfo(); return; }
     if (state.scene === 'foodInfo') { closeFoodInfo(); return; }
@@ -9393,8 +10834,10 @@
     if (state.scene === 'boat') return;
     if (state.scene === 'credits') return; // クレジットはオーバーレイ側で処理
     if (state.scene === 'battle') {
-      // 演出中なら早送り。メニュー中は無視。
-      if (state.battleStep !== 'menu' && skipBattleWait()) audio.playSE('decide');
+      // メニュー中：選択中コマンドを決定
+      if (state.battleStep === 'menu') { selectBattleAction(); return; }
+      // 演出中：早送り
+      if (skipBattleWait()) audio.playSE('decide');
       return;
     }
 
@@ -9429,7 +10872,13 @@
     setDialog('（…特に何もない。）');
   }
   function pressB() {
+    if (state.scene === 'cutscene') return; // 自動歩行カットシーン中は入力無効
     audio.ensureCtx();
+    if (state.scene === 'newgame') {
+      audio.playSE('cancel');
+      dispatchSyntheticKey('Backspace');
+      return;
+    }
     if (state.scene === 'buildingInfo') { audio.playSE('cancel'); closeBuildingInfo(); return; }
     if (state.scene === 'foodInfo') { audio.playSE('cancel'); closeFoodInfo(); return; }
     if (state.scene === 'overworld') { audio.playSE('cancel'); state.scene = 'field'; render(); return; }
@@ -9467,9 +10916,21 @@
     const d = b.dataset.dir;
     if (!d) return;
     const dv = _dirVec(d);
+    const DIR_TO_KEY = { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight' };
     const press = (ev) => {
       ev.preventDefault();
       _heldDirs.add(d);
+      if (state.scene === 'newgame') {
+        audio.ensureCtx();
+        dispatchSyntheticKey(DIR_TO_KEY[d]);
+        return;
+      }
+      // 戦闘メニュー中：合成キー経由で moveBattleCursor → showBattleUI（カーソルを可視範囲へ自動スクロール）
+      if (state.scene === 'battle' && state.battleStep === 'menu') {
+        audio.ensureCtx();
+        dispatchSyntheticKey(DIR_TO_KEY[d]);
+        return;
+      }
       if (state.scene === 'field' && !state.move && dv) tryMove(dv.dx, dv.dy, d);
     };
     const release = () => { _heldDirs.delete(d); };
@@ -9581,20 +11042,58 @@
       if (state.titleStep && state.titleStep.startsWith('name')) {
         if (state.tmp.kanaR == null) state.tmp.kanaR = 0;
         if (state.tmp.kanaC == null) state.tmp.kanaC = 0;
+        // r==KANA.length は仮想行（けす/けっていボタン）。c=0:けす, c=1:けってい
+        const ACTION_ROW = KANA.length;
         let r = state.tmp.kanaR, c = state.tmp.kanaC;
+        const onAction = (r === ACTION_ROW);
         if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
-          r = (r - 1 + KANA.length) % KANA.length;
-          if (c >= KANA[r].length) c = KANA[r].length - 1;
+          if (onAction) {
+            r = KANA.length - 1;
+            if (c >= KANA[r].length) c = KANA[r].length - 1;
+          } else {
+            r -= 1;
+            if (r < 0) { r = ACTION_ROW; if (c > 1) c = 1; }
+            else if (c >= KANA[r].length) c = KANA[r].length - 1;
+          }
         } else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
-          r = (r + 1) % KANA.length;
-          if (c >= KANA[r].length) c = KANA[r].length - 1;
+          if (onAction) {
+            r = 0;
+            if (c >= KANA[r].length) c = KANA[r].length - 1;
+          } else {
+            r += 1;
+            if (r >= KANA.length) { r = ACTION_ROW; if (c > 1) c = 1; }
+            else if (c >= KANA[r].length) c = KANA[r].length - 1;
+          }
         } else if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
-          c -= 1;
-          if (c < 0) { r = (r - 1 + KANA.length) % KANA.length; c = KANA[r].length - 1; }
+          if (onAction) {
+            c = (c - 1 + 2) % 2;
+          } else {
+            c -= 1;
+            if (c < 0) { r = (r - 1 + KANA.length) % KANA.length; c = KANA[r].length - 1; }
+          }
         } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
-          c += 1;
-          if (c >= KANA[r].length) { r = (r + 1) % KANA.length; c = 0; }
+          if (onAction) {
+            c = (c + 1) % 2;
+          } else {
+            c += 1;
+            if (c >= KANA[r].length) { r = (r + 1) % KANA.length; c = 0; }
+          }
         } else if (e.key === 'Enter' || e.key === ' ' || e.key === 'z' || e.key === 'Z') {
+          if (onAction) {
+            if (c === 0) {
+              state.tmp.names[idx] = state.tmp.names[idx].slice(0, -1);
+              renderNewGameStep();
+              return;
+            } else {
+              if (!state.tmp.names[idx]) { flashStatus('名前を入力してください'); return; }
+              state.titleStep = 'look' + (idx + 1);
+              state.tmp.lookIdx = PLAYER_LOOKS.findIndex(L => L.id === state.tmp.looks[idx]);
+              if (state.tmp.lookIdx < 0) state.tmp.lookIdx = 0;
+              state.tmp.kanaR = 0; state.tmp.kanaC = 0;
+              renderNewGameStep();
+              return;
+            }
+          }
           if (state.tmp.names[idx].length < 6) state.tmp.names[idx] += KANA[r][c];
           renderNewGameStep();
           return;
@@ -9605,7 +11104,7 @@
         } else if (e.key === '0') {
           if (!state.tmp.names[idx]) { flashStatus('名前を入力してください'); return; }
           state.titleStep = 'look' + (idx + 1);
-          state.tmp.lookIdx = LOOKS.findIndex(L => L.id === state.tmp.looks[idx]);
+          state.tmp.lookIdx = PLAYER_LOOKS.findIndex(L => L.id === state.tmp.looks[idx]);
           if (state.tmp.lookIdx < 0) state.tmp.lookIdx = 0;
           renderNewGameStep();
           return;
@@ -9618,9 +11117,9 @@
       }
       if (state.titleStep && state.titleStep.startsWith('look')) {
         const COLS = 4;
-        const total = LOOKS.length;
+        const total = PLAYER_LOOKS.length;
         if (state.tmp.lookIdx == null) {
-          state.tmp.lookIdx = LOOKS.findIndex(L => L.id === state.tmp.looks[idx]);
+          state.tmp.lookIdx = PLAYER_LOOKS.findIndex(L => L.id === state.tmp.looks[idx]);
           if (state.tmp.lookIdx < 0) state.tmp.lookIdx = 0;
         }
         let li = state.tmp.lookIdx;
@@ -9629,7 +11128,7 @@
         else if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') li = (li - 1 + total) % total;
         else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') li = (li + 1) % total;
         else if (e.key === 'Enter' || e.key === ' ' || e.key === 'z' || e.key === 'Z') {
-          state.tmp.looks[idx] = LOOKS[li].id;
+          state.tmp.looks[idx] = PLAYER_LOOKS[li].id;
           if (idx < 2) {
             state.tmp.whoIdx++;
             state.titleStep = 'name' + (state.tmp.whoIdx + 1);
@@ -9644,7 +11143,7 @@
           return;
         }
         state.tmp.lookIdx = li;
-        state.tmp.looks[idx] = LOOKS[li].id;
+        state.tmp.looks[idx] = PLAYER_LOOKS[li].id;
         renderNewGameStep();
         return;
       }
@@ -9715,6 +11214,40 @@
   });
   // フォーカスを失ったら全方向リリース（押しっぱなし状態固定の防止）
   window.addEventListener('blur', () => { _heldDirs.clear(); });
+
+  // バックグラウンド時はBGMを停止（スマホでタブ切替後も鳴り続ける問題への対策）
+  // requestAnimationFrame はブラウザが自動で停止するためゲーム本体は実質ポーズ状態。
+  // 復帰時は当時鳴っていたBGMキーを再生し直す。
+  let _pausedBGMKey = null;
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      _heldDirs.clear();
+      if (audio.bgmKey) {
+        _pausedBGMKey = audio.bgmKey;
+        audio.stopBGM();
+      }
+      if (audio.actx && audio.actx.state === 'running') {
+        try { audio.actx.suspend(); } catch (e) {}
+      }
+    } else {
+      // iOS Safari では割り込み中に「見張り役オシレータ」が破棄される場合があるため、
+      // 復帰時はリセットして ensureCtx で作り直させる（無いと以降のオシレータが無音化する）
+      if (audio._aliveOsc) {
+        try { audio._aliveOsc.stop(); } catch (e) {}
+        audio._aliveOsc = null;
+      }
+      if (audio.actx && (audio.actx.state === 'suspended' || audio.actx.state === 'interrupted')) {
+        try { audio.actx.resume(); } catch (e) {}
+      }
+      // ensureCtx() を明示的に呼んで _aliveOsc を再構築（resume完了前でも予約される）
+      if (audio.actx) audio.ensureCtx();
+      if (_pausedBGMKey) {
+        const key = _pausedBGMKey;
+        _pausedBGMKey = null;
+        audio.playBGM(key);
+      }
+    }
+  });
 
   // ============================================================
   // 起動
