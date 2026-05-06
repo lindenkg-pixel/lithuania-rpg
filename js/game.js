@@ -44,7 +44,7 @@
     PILIES:23,     // ピリエス通り（土産物市場）
     STATION:24,    // 鉄道駅（都市間移動）
     KAUNAS_CASTLE:25,  // カウナス城
-    CIURLIONIS:26,     // チョルリョーニス美術館
+    CIURLIONIS:26,     // チュルリョーニス美術館
     BOAT:27,           // 小舟（クライペダ桟橋〜魔女の丘）
     SCULPTURE:28       // 魔女の丘の木彫り彫刻
   };
@@ -80,7 +80,7 @@
     { id:'f7', sex:'f', name:'娘（ポニー）', skin:'#f8d8aa', hair:'#8a5a3a', cloth:'#3a4abe', ponytail:true },
     { id:'f8', sex:'f', name:'娘（眼鏡）',   skin:'#f8d8aa', hair:'#3a2a1a', cloth:'#3a8a6a', glasses:true },
     // キーパーソン専用（NPC固定・主人公選択不可）
-    { id:'ciurlionis', sex:'m', name:'チョルリョーニス', skin:'#f0c89a', hair:'#1a1a1a', cloth:'#f0f0e8', beard:true, bowtie:true, suit:true },
+    { id:'ciurlionis', sex:'m', name:'チュルリョーニス', skin:'#f0c89a', hair:'#1a1a1a', cloth:'#f0f0e8', beard:true, bowtie:true, suit:true },
     { id:'yamasaki',   sex:'f', name:'ユウコヤマサキ',   skin:'#f8d8aa', hair:'#1a1015', cloth:'#aa3030', longHair:true, kimono:true },
     { id:'victoria',   sex:'f', name:'ヴィクトリア',     skin:'#f8d8aa', hair:'#e8c050', cloth:'#f8f0e0', longHair:true, dress:true },
     { id:'gintere',    sex:'f', name:'ギンターレ',       skin:'#f0c8a0', hair:'#a8a0a0', cloth:'#4a1838', longHair:true, dress:true },
@@ -243,7 +243,7 @@
     if (m[18][7] === T.TREE || m[18][7] === T.ENC) m[18][7] = T.GRASS;
   }
 
-  // カウナス（最小骨組み版：駅＋宿屋＋チョルリョーニス美術館＋カウナス城）
+  // カウナス（最小骨組み版：駅＋宿屋＋チュルリョーニス美術館＋カウナス城）
   function buildKaunas() {
     const m = MAP;
     for (let y = 0; y < MAP_ROWS; y++) for (let x = 0; x < MAP_COLS; x++) m[y][x] = T.GRASS;
@@ -267,7 +267,7 @@
     for (let y = 6; y <= 28; y++) m[y][16] = T.ROAD;
     // カウナス城（北西、川の合流点）
     m[6][6] = T.KAUNAS_CASTLE;
-    // チョルリョーニス美術館（中央通り（col 16）の東隣に。道を塞がない位置）
+    // チュルリョーニス美術館（中央通り（col 16）の東隣に。道を塞がない位置）
     m[9][18]  = T.WALL;
     m[10][18] = T.CIURLIONIS;
     // 中央広場の宿屋（みほさん）— 真上1マスのみ壁、横の装飾壁は削除
@@ -484,9 +484,9 @@
       // 駅員
       { x: 16, y: 25, name: '駅員',         kind: 'station_tr', look: 'm2', hint: null,  stationary: true },
     ];
-    // チョルリョーニス精霊（橋の途中、湖上演出）— 1度話したら消える
+    // チュルリョーニス精霊（橋の途中、湖上演出）— 1度話したら消える
     if (!(state.flags && state.flags.spirit_trakai_seen)) {
-      list.push({ x: 16, y: 12, name: 'チョルリョーニス', kind: 'spirit_trakai', look: 'ciurlionis', hint: null, stationary: true });
+      list.push({ x: 16, y: 12, name: 'チュルリョーニス', kind: 'spirit_trakai', look: 'ciurlionis', hint: null, stationary: true });
     }
     return list;
   }
@@ -527,7 +527,7 @@
       m[y][x] = T.SCULPTURE;
     });
     // 中央の聖域（草地のままにする）— カンクレスが置かれた台座
-    // チョルリョーニス精霊もここに立つ
+    // チュルリョーニス精霊もここに立つ
     m[14][16] = T.GRASS;
     m[15][16] = T.GRASS;
     // NPC配置点の確保
@@ -538,8 +538,8 @@
 
   function witchesNPCs() {
     return [
-      // チョルリョーニス精霊（中央聖域）
-      { x: 16, y: 14, name: 'チョルリョーニス', kind: 'spirit_witches', look: 'ciurlionis', hint: null, stationary: true },
+      // チュルリョーニス精霊（中央聖域）
+      { x: 16, y: 14, name: 'チュルリョーニス', kind: 'spirit_witches', look: 'ciurlionis', hint: null, stationary: true },
       // 散歩中の老女（彫刻の解説役）
       { x: 14, y: 20, name: '森の老女', kind: 'witches_elder', look: 'f6', hint: null, stationary: true },
     ];
@@ -652,9 +652,9 @@
       // 駅員
       { x: 16, y: 25, name: '駅員',       kind: 'station_sl',   look: 'm2', hint: null,    stationary: true },
     ];
-    // チョルリョーニス精霊（十字架の丘の頂上）— ヴィクトリア対決後に出現、1度話したら消える
+    // チュルリョーニス精霊（十字架の丘の頂上）— ヴィクトリア対決後に出現、1度話したら消える
     if (state.flags && state.flags.victoria_done && !(state.flags && state.flags.spirit_siauliai_seen)) {
-      list.push({ x: 16, y: 6, name: 'チョルリョーニス', kind: 'spirit_siauliai', look: 'ciurlionis', hint: null, stationary: true });
+      list.push({ x: 16, y: 6, name: 'チュルリョーニス', kind: 'spirit_siauliai', look: 'ciurlionis', hint: null, stationary: true });
     }
     return list;
   }
@@ -706,9 +706,9 @@
       { x: 25, y: 6,  name: 'マリウス',       kind: 'marius_vp',   look: 'm3', hint: null,    stationary: true },
       // 観客席最前列(y=8)：左右端にソロ
       { x: 5,  y: 8,  name: 'マリア',         kind: 'maria_vp',    look: 'f6', hint: null,    stationary: true },
-      { x: 27, y: 8,  name: 'ヴィクトリア',   kind: 'victoria_vp', look: 'f6', hint: null,    stationary: true },
+      { x: 27, y: 8,  name: 'ヴィクトリア',   kind: 'victoria_vp', look: 'victoria', hint: null,    stationary: true },
       // 観客席2列目(y=10)：右にユウコ単独
-      { x: 20, y: 10, name: 'ユウコヤマサキ', kind: 'yamasaki_vp', look: 'f2', hint: null,    stationary: true },
+      { x: 20, y: 10, name: 'ユウコヤマサキ', kind: 'yamasaki_vp', look: 'yamasaki', hint: null,    stationary: true },
       // 観客席3列目(y=12)：左にコトリーナ＆ルツィア母子
       { x: 10, y: 12, name: 'コトリーナ',     kind: 'kotryna_vp',  look: 'f5', hint: 'aciu',  stationary: true },
       { x: 11, y: 12, name: 'ルツィア',       kind: 'rutsia_vp',   look: 'f7', hint: 'labas', stationary: true },
@@ -986,7 +986,7 @@
       state.px = 16; state.py = 27; state.pdir = 'up'; // 公園入口の南端から登場
     } else {
       // ヴィリニュス再訪フラグ判定：
-      //   主条件: シャウレイで精霊チョルリョーニスと邂逅済み（spirit_siauliai_seen）
+      //   主条件: シャウレイで精霊チュルリョーニスと邂逅済み（spirit_siauliai_seen）
       //   保険:   victoria_done && Kur giria>=3（精霊と話さず離脱したケースの救済）
       const f = state.flags || {};
       const kurCount = (state.piecesBySong && state.piecesBySong.kur) || 0;
@@ -2048,7 +2048,7 @@
       ctx.fillStyle = '#c83030';
       ctx.fillRect(sx + 18, sy + 1, 6, 4);
     } else if (t === T.CIURLIONIS) {
-      // チョルリョーニス美術館（白い新古典）
+      // チュルリョーニス美術館（白い新古典）
       rect(sx, sy, TILE, TILE, '#aaa090');
       ctx.fillStyle = '#f0e8d0';
       ctx.fillRect(sx + 2, sy + 6, 28, 24);
@@ -2298,7 +2298,7 @@
       c.fillRect(sx + 22, sy + 17, 2, 2);
     }
 
-    // ============ ヒゲ（チョルリョーニス用） ============
+    // ============ ヒゲ（チュルリョーニス用） ============
     if (L.beard && dir !== 'up') {
       // ヒゲは髪色をやや濃くしたものを使う（白髪のときは銀色のヒゲ、黒髪のときは濃いヒゲ）
       const bd = darken(L.hair, 0.78);
@@ -2439,7 +2439,7 @@
     r(17, 46, 4, 1, boot);
     r(17, 47, 4, 1, bootH);
 
-    // ============ 蝶ネクタイ（チョルリョーニス用） ============
+    // ============ 蝶ネクタイ（チュルリョーニス用） ============
     if (L.bowtie && dir !== 'up') {
       // スーツが明るい色のときは濃紺、暗い色のときは黒で目立たせる
       const bw = '#3a2a5a';
@@ -2859,7 +2859,9 @@
       // 歌姫ヴィクトリア（華やかなロングドレス＋片手を上げて歌うポーズ）
       const skin = '#f4d0a8', skinD = '#c89070';
       const hair = '#3a1810', hairH = '#7a3018', hairD = '#1a0a08';
-      const dress = '#aa1840', dressH = '#cc3060', dressD = '#5a0820';
+      // 白ドレス（フィールド表示時の cloth: '#f8f0e0' に合わせる）
+      const dress = '#f8f0e0', dressH = '#fffaf0', dressD = '#c0b090';
+      const lip = '#aa1840', lipD = '#3a0810';
       const gold = '#dac030', goldH = '#fff088';
       // 髪の流れ（後ろ髪・肩より下まで）
       r(38, 32, 4, 36, hair); r(78, 32, 4, 36, hair);
@@ -2895,8 +2897,8 @@
       // 鼻
       r(59, 27, 2, 4, skinD);
       // 口紅（赤）
-      r(56, 33, 8, 2, dress);
-      r(57, 34, 6, 1, '#3a0810');
+      r(56, 33, 8, 2, lip);
+      r(57, 34, 6, 1, lipD);
       // 頬の赤み
       ctx.fillStyle = 'rgba(255,140,150,0.55)';
       ctx.fillRect(sx + 44, sy + 30, 4, 4); ctx.fillRect(sx + 72, sy + 30, 4, 4);
@@ -2926,16 +2928,29 @@
       // ドレープのライン
       r(48, 86, 2, 32, dressH); r(70, 86, 2, 32, dressH);
       r(58, 86, 4, 32, dressD);
-      // 左腕（腰に当てる）
-      r(28, 50, 12, 4, dress);
-      r(28, 50, 4, 32, dress);
-      r(28, 50, 4, 2, dressH);
-      r(26, 80, 8, 6, skin); r(26, 80, 8, 1, skinD);
-      // 右腕（高く挙げる：歌唱ポーズ）
-      r(80, 38, 4, 12, skin);     // 上腕（斜め上）
-      r(82, 22, 4, 18, skin);     // 前腕
-      r(80, 14, 8, 10, skin);     // 手のひら
-      r(80, 14, 8, 1, skinD); r(80, 23, 8, 1, skinD);
+      // 右腕（胸元に当てる：オペラ歌手の祈るような歌唱ポーズ）
+      r(36, 50, 8, 4, dress);     // 肩の袖
+      r(36, 50, 8, 2, dressH);    // 袖ハイライト
+      r(38, 54, 4, 8, dress);     // 上腕（短く下へ）
+      // 前腕（胸へ向かって斜めに）
+      r(40, 60, 6, 3, skin);
+      r(44, 62, 6, 3, skin);
+      // 胸に当てる手
+      r(48, 60, 10, 6, skin);
+      r(48, 60, 10, 1, skinD);
+      r(48, 65, 10, 1, skinD);
+      // 左腕（横に開いて斜め上へ：招くようなジェスチャー）
+      r(76, 50, 8, 4, dress);     // 肩の袖
+      r(76, 50, 8, 2, dressH);    // 袖ハイライト
+      // 上腕（斜め右上へ）
+      r(82, 48, 4, 4, skin);
+      r(85, 45, 4, 4, skin);
+      // 前腕
+      r(88, 41, 4, 6, skin);
+      // 開いた手（甲を上向き）
+      r(86, 34, 8, 7, skin);
+      r(86, 34, 8, 1, skinD);
+      r(86, 40, 8, 1, skinD);
     } else if (type === 'audience_30k') {
       // 3万人の観衆（リアル寄り・4段構成）
       // sx=130, CANVAS_W=384 → local x = -120〜+240 で画面ほぼ全域を使う
@@ -3939,8 +3954,8 @@
       desc: 'ネムナス川とネリス川の合流点に建つ\n14世紀の赤煉瓦の城。\nリトアニア大公国の防衛拠点だった。\n川面に映る塔が街の象徴。',
     },
     [T.CIURLIONIS]: {
-      name: 'チョルリョーニス美術館',
-      desc: 'リトアニアが誇る音楽家・画家\nM.K.チョルリョーニスの作品を収蔵。\n絵画と音楽の融合を体現した\n夢幻的な作品群が並ぶ。',
+      name: 'チュルリョーニス美術館',
+      desc: 'リトアニアが誇る音楽家・画家\nM.K.チュルリョーニスの作品を収蔵。\n絵画と音楽の融合を体現した\n夢幻的な作品群が並ぶ。',
     },
   };
 
@@ -7814,21 +7829,21 @@
       return;
     }
     if (npc.kind === 'spirit_witches') {
-      // 中央聖域のチョルリョーニス精霊。試練（ボス戦）→カンクレス授与の流れ。
+      // 中央聖域のチュルリョーニス精霊。試練（ボス戦）→カンクレス授与の流れ。
       if (state.flags.has_kankles) {
         setDialog([
-          'チョルリョーニス：「カンクレスは、君の手の中で眠っている。」',
+          'チュルリョーニス：「カンクレスは、君の手の中で眠っている。」',
           '「正しい人の手に渡れば、ふたたび鳴り出すだろう。」',
           '「歌え、魂のままに。── 旅の途中で、また会おう。」',
         ]);
       } else if (!state.flags.witches_trial) {
         // 初訪：ボス試練（丘じゅうの彫刻が動き出す） — 挑戦するか選べる
         setDialog(
-          ['チョルリョーニス：「よく来たね、歌い手よ。」',
+          ['チュルリョーニス：「よく来たね、歌い手よ。」',
            '「ここは魔女の丘 Raganų kalnas。木々は祈り、彫刻は記憶を抱く場所だ。」',
            '「君に渡したい楽器がある。── カンクレス。」',
            '「だが、彼らは誰にでも手渡しはしない。」',
-           'チョルリョーニス：「── 試練に挑むかね？ 丘じゅうの木彫り像が、歌で目覚める。」'],
+           'チュルリョーニス：「── 試練に挑むかね？ 丘じゅうの木彫り像が、歌で目覚める。」'],
           null,
           ['挑む', 'まだやめておく'],
           (i) => {
@@ -7843,7 +7858,7 @@
               }));
             } else {
               setDialog([
-                'チョルリョーニス：「うむ、 焦ることはない。」',
+                'チュルリョーニス：「うむ、 焦ることはない。」',
                 '「歌は、 心が満ちたときに最も遠くまで届く。」',
                 '「準備が整ったら、 また私のもとへ来なさい。」',
               ]);
@@ -7853,7 +7868,7 @@
       } else {
         // 試練クリア後：カンクレス授与
         setDialog([
-          'チョルリョーニス：「── 見事だった、歌い手よ。」',
+          'チュルリョーニス：「── 見事だった、歌い手よ。」',
           '「彼らは満足して、また木の中へ眠りに戻った。」',
           '台座の上に、古い弦楽器がひとつ静かに現れた。',
           '木目に光が走り、湖のように透き通った音が、ひとつだけ響いた。',
@@ -7881,9 +7896,9 @@
     }
     // ========== トラカイのNPC ==========
     if (npc.kind === 'spirit_trakai') {
-      // 湖上の橋の上に現れるチョルリョーニス精霊（C演出） — 1度話すと消える
+      // 湖上の橋の上に現れるチュルリョーニス精霊（C演出） — 1度話すと消える
       setDialog([
-        'チョルリョーニス：「── 湖の上で、また会えたな。」',
+        'チュルリョーニス：「── 湖の上で、また会えたな。」',
         '湖面に薄く映る彼の姿は、影とも光ともつかない。',
         '「ここトラカイは、リトアニアの心臓に近い。」',
         '「Mano kraštas── 私の故郷。 言葉ではなく、土地そのものが歌になる場所だ。」',
@@ -8083,9 +8098,9 @@
       return;
     }
     if (npc.kind === 'spirit_siauliai') {
-      // チョルリョーニス精霊（C演出）— ヴィクトリア対決後に十字架の丘に出現、1度話したら消える
+      // チュルリョーニス精霊（C演出）— ヴィクトリア対決後に十字架の丘に出現、1度話したら消える
       setDialog([
-        'チョルリョーニス：「── ここでも、また会えたな。」',
+        'チュルリョーニス：「── ここでも、また会えたな。」',
         '丘の風が止み、十字架の影が一斉に薄くなった。',
         '「祈りと音楽は、同じだ。」',
         '「人がそこに立ち、何かを願う── その瞬間に、世界はわずかに鳴る。」',
@@ -8135,7 +8150,7 @@
             } else {
               setDialog([
                 'エレナ：「Puikiai! いつ聞いても良い発音ね。」',
-                '「街の北の白い建物、チョルリョーニス美術館は必ず寄ってほしい場所よ。」',
+                '「街の北の白い建物、チュルリョーニス美術館は必ず寄ってほしい場所よ。」',
               ]);
             }
           } else {
@@ -8242,7 +8257,7 @@
         setDialog([
           npc.name + '：「カウナスはね、第二の首都って呼ばれてるんだよ。」',
           '「戦間期はここが首都だった時代もあるんだ。」',
-          '「チョルリョーニス美術館は、僕らの誇りさ。」',
+          '「チュルリョーニス美術館は、僕らの誇りさ。」',
         ]);
       }
       return;
@@ -8968,11 +8983,11 @@
       return true;
     }
     if (t === T.CIURLIONIS) {
-      // 美術館: 絵画調査でダイナミック琉球の4ピース目とチョルリョーニス精霊B演出
+      // 美術館: 絵画調査でダイナミック琉球の4ピース目とチュルリョーニス精霊B演出
       if (!state.flags.kaunas_museum) {
         setDialog(
-          ['【チョルリョーニス美術館】',
-           'リトアニアが誇る音楽家・画家 M.K.チョルリョーニスの作品館。',
+          ['【チュルリョーニス美術館】',
+           'リトアニアが誇る音楽家・画家 M.K.チュルリョーニスの作品館。',
            '《ソナタ・海》《ソナタ・星》── 絵から音が立ちのぼってくるよう。',
            '（一枚の絵の前で、足が止まった…）'],
           null,
@@ -8980,11 +8995,11 @@
           (i) => {
             if (i === 0) {
               state.flags.kaunas_museum = true;
-              const a = awardPiece('dynamic', 'チョルリョーニス美術館');
+              const a = awardPiece('dynamic', 'チュルリョーニス美術館');
               setDialog([
                 '絵の中の波の渦に吸い込まれそうになる…',
                 '── ふいに、館内の空気がやわらかく揺れた。',
-                'チョルリョーニス：「……よく来た、歌い手よ。」',
+                'チュルリョーニス：「……よく来た、歌い手よ。」',
                 '「絵と音は、根を同じくする。海の音が、君に渡したいものがある。」',
                 '絵の前に、見覚えのある譜面が一枚そっと置かれている。',
               ].concat(pieceLines(a)), () => saveGame());
@@ -8994,7 +9009,7 @@
           }
         );
       } else {
-        setDialog(['【チョルリョーニス美術館】',
+        setDialog(['【チュルリョーニス美術館】',
           '《ソナタ・海》《ソナタ・星》── 何度見ても飽きない。',
           '（あの絵の前に立つと、不思議と心が澄んでいく…）']);
       }
@@ -9097,7 +9112,7 @@
   function openBoat() {
     if (state.cityKey === 'klaipeda') {
       const manoCount = (state.piecesBySong && state.piecesBySong.mano) || 0;
-      // 条件: クライペダで Mano kraštas を 3 つ集めた、かつチョルリョーニスの導きが立った
+      // 条件: クライペダで Mano kraštas を 3 つ集めた、かつチュルリョーニスの導きが立った
       if (state.flags.witches_done) {
         // 既に魔女の丘から戻った後でも、再訪可
         setDialog(
@@ -9127,10 +9142,10 @@
         ]);
         return;
       }
-      // 初回：チョルリョーニス精霊が現れて、砂州へ導く
+      // 初回：チュルリョーニス精霊が現れて、砂州へ導く
       setDialog([
         '小舟を覗き込んでいると、ふわりと風が変わった。',
-        'チョルリョーニス：「……Mano kraštas、ここまで来たね。」',
+        'チュルリョーニス：「……Mano kraštas、ここまで来たね。」',
         '海の向こうに白く霞む砂州が見えた。クルシュー砂州、Juodkrantė。',
         '「あの森に、君が受け取るべきものがある。──さあ、行こう。」',
         '（船頭が音もなく艫に立ち、櫂を取った。）',
@@ -9546,7 +9561,7 @@
 
   // ============================================================
   // ダイヌシュベンテ最終戦（Phase 7-3）
-  //  チョルリョーニス精霊C演出 → 「3万人の観衆」群体ボス戦
+  //  チュルリョーニス精霊C演出 → 「3万人の観衆」群体ボス戦
   // ============================================================
   function startDainusvente() {
     // 「風が止まった」表現と合わせて、まず会場のBGMを止める
@@ -9557,7 +9572,7 @@
         '── ふっと、 風が止まった。',
         '会場の灯りが、 一瞬だけ揺れる。',
         '誰の目にも映らないけれど、 ステージの脇に、 彼が立っていた。',
-        'チョルリョーニス：「歌え、 魂のままに。」',
+        'チュルリョーニス：「歌え、 魂のままに。」',
         '「── お前たちの音は、 もうリトアニアそのものだ。」',
         '「だが── 同じ歌ばかりでは、 三万の風には届かぬ。」',
         '「四つの旋律── 取り戻したすべてを響かせよ。」',
@@ -10369,7 +10384,7 @@
   // ダイヌシュベンテ勝利後 — エンディング演出（Phase 7-4）
   //   A. ステージ上の3人＋あきちゃん・みほさん
   //   B. キーパーソン祝福
-  //   C. チョルリョーニス最後の登場
+  //   C. チュルリョーニス最後の登場
   //   D. スタッフロール
   //   E. フィールド復帰（Vingisパーク）
   // ============================================================
@@ -10417,7 +10432,7 @@
   }
 
   function playEndingSceneC() {
-    // Scene C: チョルリョーニスの最後の登場
+    // Scene C: チュルリョーニスの最後の登場
     // ギンターレの最後のセリフが画面に残ったままBGMだけ消えると順番がズレて見えるため、
     // ダイアログ枠を即時クリアして「セリフ→無音」を視覚的にも揃える。
     // setTimeout の隙間に A 連打で「特に何もない」が出ないよう scene を cutscene に固定。
@@ -10434,7 +10449,7 @@
       setDialog([
         '── そのとき、 風が、 静かに吹き抜けた。',
         '誰も気づかないけれど、 ステージの端に、 彼が立っていた。',
-        'チョルリョーニス：「── お前たちの音は、 リトアニアの森にも、 海にも、 空にも届いた。」',
+        'チュルリョーニス：「── お前たちの音は、 リトアニアの森にも、 海にも、 空にも届いた。」',
         '「歌い終えた声は、 大地に還り、 また誰かの歌になる。」',
         '「私たちはみな── 消えゆく旋律の、 一部にすぎない。」',
         '「いい旅だった。 もう、 言うことはない。」',
@@ -10517,7 +10532,7 @@
       <div style="margin-bottom:24px;">ギンターレ</div>
 
       <div style="color:#dac030;margin-bottom:6px;">［ 精霊 ］</div>
-      <div style="margin-bottom:24px;">M.K.チョルリョーニス</div>
+      <div style="margin-bottom:24px;">M.K.チュルリョーニス</div>
 
       <div style="color:#dac030;margin-bottom:6px;">［ 音楽モチーフ ］</div>
       <div>ソーラン節　／　ダイナミック琉球</div>
