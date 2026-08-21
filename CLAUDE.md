@@ -22,10 +22,12 @@ AKクワイアの方々に「楽しんでもらいながらリトアニアと言
 
 スマホブラウザで配布URLにアクセスして遊ぶ。アカウント不要・インストール不要。**商用ではない（課金なし）**。
 
-当初は GitHub Pages で公開（https://lindenkg-pixel.github.io/lithuania-rpg/）。
-運用上の都合で Cloudflare Pages（https://lithuania-rpg.pages.dev/）にメイン移行中。
-現在は両方稼働しており、AKクワイア向けには引き続き GitHub Pages の URL を共有中。
-**完全移行後は GitHub リポジトリを private にして GitHub Pages を閉じる方針**。
+**配信は Cloudflare Pages（https://lithuania-rpg.pages.dev/）に一本化済み（2026-08-21）**。
+旧 GitHub Pages URL（https://lindenkg-pixel.github.io/lithuania-rpg/）はクワイアに共有済みのため
+殺さず、**Cloudflare へ自動転送するリダイレクトページに差し替えた**（GitHub Pages の配信元を
+`pages-redirect` ブランチに切替。master は従来どおり Cloudflare Pages のデプロイ元）。
+★**リポジトリを private にすると GitHub Pages ごと止まりリダイレクトも死ぬ**ので、
+旧URLを生かす限り public のまま維持すること。
 
 ## 技術スタック
 
@@ -328,12 +330,14 @@ python -m http.server 8000
 ブラウザで `http://localhost:8000/` を開く。スマホ実機テストはPCと同じWi-Fiにつないで `http://<PCのIP>:8000/`。
 
 ### 公開
-現在は GitHub Pages と Cloudflare Pages の両方で公開中（移行期）。
-- GitHub Pages: https://lindenkg-pixel.github.io/lithuania-rpg/ （`master` push で 1-2 分で自動反映）
-- Cloudflare Pages: https://lithuania-rpg.pages.dev/ （GitHub連携で同様に自動反映）
-
-AKクワイアの方々には GitHub Pages の URL を共有済み（2026-05時点）。
-**今後新規に紹介する人には Cloudflare Pages の URL を案内し、既存ユーザーが完全移行できたら GitHub リポジトリは private 化、GitHub Pages は閉じる**方針。
+**Cloudflare Pages に一本化済み（2026-08-21）**。
+- 本体: https://lithuania-rpg.pages.dev/ （GitHub連携、`master` push で自動反映）
+- 旧URL: https://lindenkg-pixel.github.io/lithuania-rpg/ は**リダイレクトページのみ**
+  （GitHub Pages の配信元を `pages-redirect` ブランチ＝index.html/404.html の2ファイルに切替済み。
+  クワイア共有済みの旧URLを生かすための措置。配信確認済み 2026-08-21）
+- **本体の更新は従来どおり master に push するだけ**。`pages-redirect` ブランチは触らない
+- リポジトリの private 化はリダイレクトが死ぬため行わない（旧URL不要と判断できたら
+  private化＋GitHub Pages停止でクローズ可）
 
 ### Git運用
 - `master`: 公開用
